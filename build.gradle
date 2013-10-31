@@ -1,9 +1,24 @@
 apply plugin: 'java'
 apply plugin: 'maven'
+apply plugin: 'signing'
 apply plugin: 'idea'
 
 group = 'com.blacklocus'
 version = '0.1-SNAPSHOT'
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+
+/** Function always returns a new manifest that can be customized */
+def defaultManifest() {
+    return manifest{
+        def git_cmd = "git rev-parse HEAD"
+        def git_proc = git_cmd.execute()
+        attributes 'SCM-Revision': git_proc.text.trim()
+        attributes 'Timestamp': String.valueOf(System.currentTimeMillis())
+        attributes 'Build-Host': InetAddress.localHost.hostName
+    }
+}
 
 repositories {
     mavenCentral()
@@ -13,6 +28,32 @@ dependencies {
     compile 'com.amazonaws:aws-java-sdk:1.6.3'
     compile 'com.codahale.metrics:metrics-core:3.0.1'
     compile 'org.slf4j:slf4j-api:1.7.5'
+}
+
+jar {
+    manifest = defaultManifest()
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+    manifest = defaultManifest()
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+    manifest = defaultManifest()
+}
+
+artifacts {
+    archives jar
+    archives javadocJar
+    archives sourcesJar
+}
+
+signing {
+    sign configurations.archives
 }
 
 uploadArchives {
@@ -68,5 +109,5 @@ idea {
 }
 
 task createWrapper(type: Wrapper) {
-    gradleVersion = '1.6'
+    gradleVersion = '1.8'
 }
