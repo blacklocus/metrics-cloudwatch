@@ -41,7 +41,7 @@ public class CloudWatchReporter extends ScheduledReporter {
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      * @param metricNamespace CloudWatch metric namespace that all metrics reported by this reporter will use
      */
-    protected CloudWatchReporter(MetricRegistry registry, String metricNamespace, AmazonCloudWatch cloudWatch) {
+    public CloudWatchReporter(MetricRegistry registry, String metricNamespace, AmazonCloudWatch cloudWatch) {
         super(registry, "CloudWatchReporter:" + metricNamespace, ALL, TimeUnit.MINUTES, TimeUnit.MINUTES);
         this.cloudWatch = cloudWatch;
         this.metricNamespace = metricNamespace;
