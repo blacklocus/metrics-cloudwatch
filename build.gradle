@@ -1,0 +1,72 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'idea'
+
+group = 'com.blacklocus'
+version = '0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.amazonaws:aws-java-sdk:1.6.3'
+    compile 'com.codahale.metrics:metrics-core:3.0.1'
+    compile 'org.slf4j:slf4j-api:1.7.5'
+}
+
+uploadArchives {
+    repositories.mavenDeployer {
+        beforeDeployment { MavenDeployment deployment -> signPom(deployment) }
+
+        repository(
+                // for snapshots
+                url: "https://oss.sonatype.org/content/repositories/snapshots/"
+                // for staging/release
+//                    url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+        ) {
+            authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+
+        pom.project {
+            name 'metrics-cloudwatch'
+            description "A codahale metrics reporter to Amazon CloudWatch"
+            url 'https://github.com/blacklocus/metrics-cloudwatch'
+            licenses {
+                license {
+                    name 'The Apache Software License, Version 2.0'
+                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    distribution 'repo'
+                }
+            }
+            scm {
+                url 'scm:https://github.com/blacklocus/metrics-cloudwatch.git'
+                connection 'scm:git://github.com/blacklocus/metrics-cloudwatch.git'
+                developerConnection 'scm:git@github.com:blacklocus/metrics-cloudwatch.git'
+            }
+            organization {
+                name 'BlackLocus'
+                url 'http://www.blacklocus.com'
+            }
+            developers {
+                developer {
+                    id 'dirkraft'
+                    name 'Jason Dunkelberger'
+                    organization 'BlackLocus'
+                    organizationUrl 'http://www.blacklocus.com'
+                }
+            }
+        }
+    }
+}
+
+idea {
+    project {
+        jdkName = '1.6'
+        languageLevel = '1.6'
+    }
+}
+
+task createWrapper(type: Wrapper) {
+    gradleVersion = '1.6'
+}

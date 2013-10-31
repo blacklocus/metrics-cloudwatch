@@ -1,0 +1,25 @@
+#java specific
+*.class
+.gradle/*
+
+build/
+out/
+
+# IDEA project files
+*.iml
+*.ipr
+*.iws
+*.ids
+
+# Eclipse project files
+.settings/
+.classpath
+.project
+
+## generic files to ignore
+*~
+*.lock
+*.DS_Store
+*.swp
+*.out
+
