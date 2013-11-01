@@ -1,10 +1,21 @@
+group = 'com.blacklocus'
+version = '0.1-SNAPSHOT'
+
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'signing'
 apply plugin: 'idea'
 
-group = 'com.blacklocus'
-version = '0.1-SNAPSHOT'
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.5.0'
+    }
+}
+apply plugin: 'license'
 
 sourceCompatibility = 1.6
 targetCompatibility = 1.6
@@ -111,4 +122,8 @@ idea {
 
 task createWrapper(type: Wrapper) {
     gradleVersion = '1.8'
+}
+
+license {
+    header rootProject.file('src/license/HEADER')
 }
