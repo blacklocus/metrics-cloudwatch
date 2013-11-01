@@ -92,7 +92,13 @@ public class CloudWatchReporter extends ScheduledReporter {
             LOG.warn("CloudWatchReporter Timer reporting not implemented.");
         }
 
-        cloudWatch.putMetricData(new PutMetricDataRequest().withNamespace(metricNamespace).withMetricData(data));
+        // We can't let an exception leak out of here, or else the reporter will cease running per mechanics of
+        //
+        try {
+            cloudWatch.putMetricData(new PutMetricDataRequest().withNamespace(metricNamespace).withMetricData(data));
+        } catch (Exception e) {
+            LOG.error("Exception reporting metrics to CloudWatch. This data set will be discarded.", e);
+        }
 
         LOG.info("Sent {} metric datas to CloudWatch", data.size());
     }
