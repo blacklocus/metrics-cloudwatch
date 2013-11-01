@@ -27,6 +27,7 @@ repositories {
 dependencies {
     compile 'com.amazonaws:aws-java-sdk:1.6.3'
     compile 'com.codahale.metrics:metrics-core:3.0.1'
+    compile 'com.google.guava:guava:15.0'
     compile 'org.slf4j:slf4j-api:1.7.5'
 }
 

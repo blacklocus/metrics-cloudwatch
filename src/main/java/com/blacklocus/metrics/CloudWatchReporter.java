@@ -1,6 +1,6 @@
 package com.blacklocus.metrics;
 
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsync;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
@@ -13,14 +13,16 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,7 +32,7 @@ public class CloudWatchReporter extends ScheduledReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(CloudWatchReporter.class);
 
-    private final AmazonCloudWatch cloudWatch;
+    private final AmazonCloudWatchAsync cloudWatch;
     private final String metricNamespace;
 
     private final Map<Counter, Long> lastPolledCounts = new HashMap<Counter, Long>();
@@ -41,7 +43,7 @@ public class CloudWatchReporter extends ScheduledReporter {
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      * @param metricNamespace CloudWatch metric namespace that all metrics reported by this reporter will use
      */
-    public CloudWatchReporter(MetricRegistry registry, String metricNamespace, AmazonCloudWatch cloudWatch) {
+    public CloudWatchReporter(MetricRegistry registry, String metricNamespace, AmazonCloudWatchAsync cloudWatch) {
         super(registry, "CloudWatchReporter:" + metricNamespace, ALL, TimeUnit.MINUTES, TimeUnit.MINUTES);
         this.cloudWatch = cloudWatch;
         this.metricNamespace = metricNamespace;
@@ -54,7 +56,7 @@ public class CloudWatchReporter extends ScheduledReporter {
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
 
-        Collection<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
+        List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
                 meters.size() + timers.size()); // something like that
 
         if (gauges.size() > 0) {
@@ -92,12 +94,26 @@ public class CloudWatchReporter extends ScheduledReporter {
             LOG.warn("CloudWatchReporter Timer reporting not implemented.");
         }
 
-        // We can't let an exception leak out of here, or else the reporter will cease running per mechanics of
-        //
-        try {
-            cloudWatch.putMetricData(new PutMetricDataRequest().withNamespace(metricNamespace).withMetricData(data));
-        } catch (Exception e) {
-            LOG.error("Exception reporting metrics to CloudWatch. This data set will be discarded.", e);
+
+        // Each CloudWatch API request may contain at maximum 20 datums.
+        List<List<MetricDatum>> dataPartitions = Lists.partition(data, 20);
+        List<Future<?>> cloudWatchFutures = new ArrayList<Future<?>>(dataPartitions.size());
+
+        for (List<MetricDatum> dataSubset : dataPartitions) {
+            cloudWatchFutures.add(cloudWatch.putMetricDataAsync(new PutMetricDataRequest()
+                    .withNamespace(metricNamespace)
+                    .withMetricData(dataSubset)));
+        }
+        for (Future<?> cloudWatchFuture : cloudWatchFutures) {
+            // We can't let an exception leak out of here, or else the reporter will cease running per mechanics of
+            // java.util.concurrent.ScheduledExecutorService.scheduleAtFixedRate(Runnable, long, long, TimeUnit unit)
+            try {
+                // See what happened in case of an error.
+                cloudWatchFuture.get();
+            } catch (Exception e) {
+                LOG.error("Exception reporting metrics to CloudWatch. The data sent in this CloudWatch API request " +
+                        "may have been discarded.", e);
+            }
         }
 
         LOG.info("Sent {} metric datas to CloudWatch", data.size());
