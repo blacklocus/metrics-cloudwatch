@@ -40,3 +40,11 @@ Futures
 
   - Send other Meter rates
   - Figure out which other metric types can be usefully conveyed to CloudWatch
+
+
+
+License
+-------
+
+Copyright 2013 BlackLocus under [the Apache 2.0 license](LICENSE)
+
