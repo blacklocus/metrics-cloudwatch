@@ -142,7 +142,7 @@ public class CloudWatchReporter extends ScheduledReporter {
                 }
             }
 
-            LOG.info("Sent {} metric datas to CloudWatch", data.size());
+            LOG.info("Sent {} metric data to CloudWatch. namespace: {}", data.size(), metricNamespace);
 
         } catch (RuntimeException e) {
             LOG.error("Error marshalling CloudWatch metrics.", e);
