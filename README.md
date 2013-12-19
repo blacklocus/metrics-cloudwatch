@@ -6,7 +6,7 @@ from [codahale metrics](http://metrics.codahale.com/) to [Amazon CloudWatch](htt
 Only two metric types are currently relayed to CloudWatch
 
   - Counters - The difference since the last report is sent every polling interval.
-  - Meters - The OneMinuteRate is sent every polling interval
+  - Meters - The internal counter is sent as normal Counters are.
   - ~~Gauges~~ - Not sent
   - ~~Histograms~~ - Not sent
   - ~~Timers~~ - Note sent

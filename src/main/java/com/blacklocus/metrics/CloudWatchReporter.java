@@ -16,6 +16,7 @@
 package com.blacklocus.metrics;
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsync;
+import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +49,16 @@ public class CloudWatchReporter extends ScheduledReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(CloudWatchReporter.class);
 
+    public static final String NAME_DELIMITER = " ";
+    public static final String NAME_SEPARATOR = "=";
+
+    public static final String METRIC_TYPE = "type";
+
+
     private final AmazonCloudWatchAsync cloudWatch;
     private final String metricNamespace;
 
-    private final Map<Counter, Long> lastPolledCounts = new HashMap<Counter, Long>();
+    private final Map<Metric, Long> lastPolledCounts = new HashMap<Metric, Long>();
 
     /**
      * Creates a new {@link ScheduledReporter} instance.
@@ -74,21 +82,25 @@ public class CloudWatchReporter extends ScheduledReporter {
         List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
                 meters.size() + timers.size()); // something like that
 
+
         if (gauges.size() > 0) {
             LOG.warn("CloudWatchReporter Gauge reporting not implemented.");
         }
 
         if (counters.size() > 0) {
             for (Map.Entry<String, Counter> counterEntry : counters.entrySet()) {
+                DemuxedKey key = new DemuxedKey(counterEntry.getKey());
                 Counter counter = counterEntry.getValue();
+
                 long count = counter.getCount();
                 Long lastCount = lastPolledCounts.get(counter);
                 if (lastCount == null) {
                     lastCount = 0L;
                 }
-                long diff = count - lastCount;
+                double diff = count - lastCount;
                 lastPolledCounts.put(counter, count);
-                data.add(new MetricDatum().withMetricName(counterEntry.getKey()).withValue((double) diff).withUnit(StandardUnit.Count));
+
+                data.add(key.newDatum("counter").withValue(diff).withUnit(StandardUnit.Count));
             }
         }
 
@@ -98,10 +110,18 @@ public class CloudWatchReporter extends ScheduledReporter {
 
         if (meters.size() > 0) {
             for (Map.Entry<String, Meter> meterEntry : meters.entrySet()) {
+                DemuxedKey key = new DemuxedKey(meterEntry.getKey());
                 Meter meter = meterEntry.getValue();
-                // Only send the 1-minute. Use CloudWatch to smooth over longer periods. Yeah... I guess that makes sense.
-                double oneMinuteRate = meter.getOneMinuteRate();
-                data.add(new MetricDatum().withMetricName(meterEntry.getKey()).withValue(oneMinuteRate));
+
+                long count = meter.getCount();
+                Long lastCount = lastPolledCounts.get(meter);
+                if (lastCount == null) {
+                    lastCount = 0L;
+                }
+                double diff = count - lastCount;
+                lastPolledCounts.put(meter, count);
+
+                data.add(key.newDatum("counter").withValue(diff).withUnit(StandardUnit.Count));
             }
         }
 
@@ -140,4 +160,35 @@ public class CloudWatchReporter extends ScheduledReporter {
             return true;
         }
     };
+
+    static class DemuxedKey {
+
+        final String name;
+        final Collection<Dimension> dimensions = new ArrayList<Dimension>();
+
+        DemuxedKey(String s) {
+            String[] segments = s.split(NAME_DELIMITER);
+            StringBuilder name = new StringBuilder(segments[0]);
+
+            for (int i = 1; i < segments.length; i++) {
+                String segment = segments[i];
+
+                if (segment.contains(NAME_SEPARATOR)) {
+                    String[] dimension = segment.split(NAME_SEPARATOR, 2);
+                    dimensions.add(new Dimension().withName(dimension[0]).withValue(dimension[1]));
+                } else {
+                    name.append(" ").append(segment);
+                }
+            }
+
+            this.name = name.toString();
+        }
+
+        MetricDatum newDatum(String type) {
+            List<Dimension> dimensions = new ArrayList<Dimension>(this.dimensions.size() + 1);
+            dimensions.add(new Dimension().withName(METRIC_TYPE).withValue(type));
+            dimensions.addAll(this.dimensions);
+            return new MetricDatum().withMetricName(name).withDimensions(dimensions);
+        }
+    }
 }
