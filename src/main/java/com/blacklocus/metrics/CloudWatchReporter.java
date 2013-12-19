@@ -21,6 +21,7 @@ import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Counting;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
@@ -30,6 +31,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,79 +81,89 @@ public class CloudWatchReporter extends ScheduledReporter {
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
 
-        List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
-                meters.size() + timers.size()); // something like that
+        try {
+            List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
+                    meters.size() + timers.size()); // something like that
 
+            for (Map.Entry<String, Gauge> gaugeEntry : gauges.entrySet()) {
+                DemuxedKey key = new DemuxedKey(gaugeEntry.getKey());
+                Gauge gauge = gaugeEntry.getValue();
+                Object valueObj = gauge.getValue();
+                if (valueObj == null) {
+                    continue;
+                }
 
-        if (gauges.size() > 0) {
-            LOG.warn("CloudWatchReporter Gauge reporting not implemented.");
-        }
+                String valueStr = valueObj.toString();
+                if (NumberUtils.isNumber(valueStr)) {
+                    Number value = NumberUtils.createNumber(valueStr);
+                    data.add(key.newDatum("gauge").withValue(value.doubleValue()));
+                }
+            }
 
-        if (counters.size() > 0) {
             for (Map.Entry<String, Counter> counterEntry : counters.entrySet()) {
-                DemuxedKey key = new DemuxedKey(counterEntry.getKey());
-                Counter counter = counterEntry.getValue();
-
-                long count = counter.getCount();
-                Long lastCount = lastPolledCounts.get(counter);
-                if (lastCount == null) {
-                    lastCount = 0L;
-                }
-                double diff = count - lastCount;
-                lastPolledCounts.put(counter, count);
-
-                data.add(key.newDatum("counter").withValue(diff).withUnit(StandardUnit.Count));
+                count(counterEntry, "counter", data);
             }
-        }
 
-        if (histograms.size() > 0) {
-            LOG.warn("CloudWatchReporter Histogram reporting not implemented.");
-        }
-
-        if (meters.size() > 0) {
             for (Map.Entry<String, Meter> meterEntry : meters.entrySet()) {
-                DemuxedKey key = new DemuxedKey(meterEntry.getKey());
-                Meter meter = meterEntry.getValue();
+                count(meterEntry, "meterCount", data);
+            }
 
-                long count = meter.getCount();
-                Long lastCount = lastPolledCounts.get(meter);
-                if (lastCount == null) {
-                    lastCount = 0L;
+            for (Map.Entry<String, Timer> timerEntry : timers.entrySet()) {
+                count(timerEntry, "timerCount", data);
+            }
+
+            // No translations yet. Note that Histogram implements Counting but this is not submitted as that
+            // returns a samples count, not a total of all values given to the histogram. Histograms do not
+            // by definition store or expose any sort of running total. Observed CloudWatch histogram count metrics
+            // will not manifest like other count-like metrics and so have not been included in the same way.
+            for (Map.Entry<String, Histogram> histogramEntry : histograms.entrySet()) {
+
+            }
+
+
+            // Each CloudWatch API request may contain at maximum 20 datums.
+            List<List<MetricDatum>> dataPartitions = Lists.partition(data, 20);
+            List<Future<?>> cloudWatchFutures = new ArrayList<Future<?>>(dataPartitions.size());
+
+            for (List<MetricDatum> dataSubset : dataPartitions) {
+                cloudWatchFutures.add(cloudWatch.putMetricDataAsync(new PutMetricDataRequest()
+                        .withNamespace(metricNamespace)
+                        .withMetricData(dataSubset)));
+            }
+            for (Future<?> cloudWatchFuture : cloudWatchFutures) {
+                // We can't let an exception leak out of here, or else the reporter will cease running per mechanics of
+                // java.util.concurrent.ScheduledExecutorService.scheduleAtFixedRate(Runnable, long, long, TimeUnit unit)
+                try {
+                    // See what happened in case of an error.
+                    cloudWatchFuture.get();
+                } catch (Exception e) {
+                    LOG.error("Exception reporting metrics to CloudWatch. The data sent in this CloudWatch API request " +
+                            "may have been discarded.", e);
                 }
-                double diff = count - lastCount;
-                lastPolledCounts.put(meter, count);
-
-                data.add(key.newDatum("counter").withValue(diff).withUnit(StandardUnit.Count));
             }
+
+            LOG.info("Sent {} metric datas to CloudWatch", data.size());
+
+        } catch (RuntimeException e) {
+            LOG.error("Error marshalling CloudWatch metrics.", e);
         }
+    }
 
-        if (timers.size() > 0) {
-            LOG.warn("CloudWatchReporter Timer reporting not implemented.");
+    private <T extends Metric & Counting> T count(Map.Entry<String, T> countingEntry, String type, Collection<MetricDatum> data) {
+        DemuxedKey key = new DemuxedKey(countingEntry.getKey());
+        T counting = countingEntry.getValue();
+
+        long count = counting.getCount();
+        Long lastCount = lastPolledCounts.get(counting);
+        if (lastCount == null) {
+            lastCount = 0L;
         }
+        double diff = count - lastCount;
+        lastPolledCounts.put(counting, count);
 
+        data.add(key.newDatum(type).withValue(diff).withUnit(StandardUnit.Count));
 
-        // Each CloudWatch API request may contain at maximum 20 datums.
-        List<List<MetricDatum>> dataPartitions = Lists.partition(data, 20);
-        List<Future<?>> cloudWatchFutures = new ArrayList<Future<?>>(dataPartitions.size());
-
-        for (List<MetricDatum> dataSubset : dataPartitions) {
-            cloudWatchFutures.add(cloudWatch.putMetricDataAsync(new PutMetricDataRequest()
-                    .withNamespace(metricNamespace)
-                    .withMetricData(dataSubset)));
-        }
-        for (Future<?> cloudWatchFuture : cloudWatchFutures) {
-            // We can't let an exception leak out of here, or else the reporter will cease running per mechanics of
-            // java.util.concurrent.ScheduledExecutorService.scheduleAtFixedRate(Runnable, long, long, TimeUnit unit)
-            try {
-                // See what happened in case of an error.
-                cloudWatchFuture.get();
-            } catch (Exception e) {
-                LOG.error("Exception reporting metrics to CloudWatch. The data sent in this CloudWatch API request " +
-                        "may have been discarded.", e);
-            }
-        }
-
-        LOG.info("Sent {} metric datas to CloudWatch", data.size());
+        return counting;
     }
 
     static final MetricFilter ALL = new MetricFilter() {
