@@ -1,5 +1,5 @@
 group = 'com.blacklocus'
-version = '0.2-SNAPSHOT'
+version = '0.1'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -51,6 +51,12 @@ jar {
     manifest = defaultManifest()
 }
 
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+    manifest = defaultManifest()
+}
+
 task sourcesJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
@@ -59,6 +65,7 @@ task sourcesJar(type: Jar) {
 
 artifacts {
     archives jar
+    archives javadocJar
     archives sourcesJar
 }
 
@@ -72,9 +79,9 @@ uploadArchives {
 
         repository(
                 // for snapshots
-                url: "https://oss.sonatype.org/content/repositories/snapshots/"
+//                url: "https://oss.sonatype.org/content/repositories/snapshots/"
                 // for staging/release
-//                url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
         ) {
             authentication(userName: sonatypeUsername, password: sonatypePassword)
         }
