@@ -35,14 +35,14 @@ public class CloudWatchReporterTest {
                         new AmazonCloudWatchAsyncClient()
                 ).start(1, TimeUnit.MINUTES);
 
-                Gauge<Long> theGauge = metricRegistry.register("TheGauge", new Gauge<Long>() {
+                metricRegistry.register("TheGauge", new Gauge<Long>() {
                     @Override
                     public Long getValue() {
                         return 1L;
                     }
                 });
                 // Should be ignored by reporter
-                Gauge<String> nonNumericGauge = metricRegistry.register("TheGauge notNumeric", new Gauge<String>() {
+                metricRegistry.register("TheGauge notNumeric", new Gauge<String>() {
                     @Override
                     public String getValue() {
                         return "yellow";
@@ -73,14 +73,14 @@ public class CloudWatchReporterTest {
                         new AmazonCloudWatchAsyncClient()
                 ).start(1, TimeUnit.MINUTES);
 
-                Gauge<Long> theGauge = metricRegistry.register("TheGauge", new Gauge<Long>() {
+                metricRegistry.register("TheGauge", new Gauge<Long>() {
                     @Override
                     public Long getValue() {
                         return 2L;
                     }
                 });
                 // Should be ignored by reporter
-                Gauge<String> nonNumericGauge = metricRegistry.register("TheGauge notNumeric", new Gauge<String>() {
+                metricRegistry.register("TheGauge notNumeric", new Gauge<String>() {
                     @Override
                     public String getValue() {
                         return "green";
