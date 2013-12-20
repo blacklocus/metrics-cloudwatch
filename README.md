@@ -14,9 +14,9 @@ each CloudWatch report so they retain their original, reflective functionality.
 | Counter   | counterSum     | change in sum since last report                                                         |
 | Meter     | meterSum       | change in sum since last report                                                         |
 | Histogram | histogramCount | change in samples since last report                                                     |
-| Histogram | histogramSum   | CloudWatch StatisticSet based on Snapshot                                               |
+| Histogram | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
 | Timer     | timerCount     | change in samples since last report                                                     |
-| Timer     | timerSum       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
+| Timer     | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
 | --------- | -------------- | --------------------------------------------------------------------------------------- |
 
 `histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history

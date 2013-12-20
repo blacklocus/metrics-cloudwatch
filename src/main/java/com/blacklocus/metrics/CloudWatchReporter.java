@@ -126,7 +126,7 @@ public class CloudWatchReporter extends ScheduledReporter {
                 Histogram histogram = histogramEntry.getValue();
 
                 count(key, histogram, "histogramCount", data);
-                sampling(key, histogram, 1.0, "histogramSum", data);
+                sampling(key, histogram, 1.0, "histogramSet", data);
             }
 
             for (Map.Entry<String, Timer> timerEntry : timers.entrySet()) {
@@ -135,7 +135,7 @@ public class CloudWatchReporter extends ScheduledReporter {
 
                 count(key, timer, "timerCount", data);
                 // nanos -> millis
-                sampling(key, timer, 0.000001, "timerSum", data);
+                sampling(key, timer, 0.000001, "timerSet", data);
 
             }
 
