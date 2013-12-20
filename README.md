@@ -3,48 +3,57 @@ CloudWatch integration for codahale metrics
 This is a [metrics reporter implementation](https://github.com/codahale/metrics/blob/master/metrics-core/src/main/java/com/codahale/metrics/ScheduledReporter.java)
 from [codahale metrics](http://metrics.codahale.com/) to [Amazon CloudWatch](http://aws.amazon.com/cloudwatch/).
 
-Only count metrics are currently relayed to CloudWatch as those translate directly rather naturally.
+These translations have been made to CloudWatch. Generally only the atomic data is submitted so that it can be
+predictably aggregated via the CloudWatch API or UI. Codehale Metrics instances are NOT reset on
+each CloudWatch report so they retain their original, reflective functionality.
 
-  - Counters - The difference since the last report is sent every polling interval.
-  - Meters - The internal counter is sent as normal Counters are.
-  - Gauges - If the value is numeric, the current value of it is sent every polling interval.
-  - Histograms - The internal counter is sent as normal Counters are.
-  - Timers - The internal counter is sent as normal Counters are.
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
+| Metric    | Type           | sent statistic meaning per interval                                                     |
+| ========= | ============== | ======================================================================================= |
+| Gauge     | gauge          | current value (if numeric)                                                              |
+| Counter   | counterSum     | change in sum since last report                                                         |
+| Meter     | meterSum       | change in sum since last report                                                         |
+| Histogram | histogramCount | change in samples since last report                                                     |
+| Histogram | histogramSum   | CloudWatch StatisticSet based on Snapshot                                               |
+| Timer     | timerCount     | change in samples since last report                                                     |
+| Timer     | timerSum       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
 
-There is implicit support for CloudWatch dimensions should you choose to use them. Any un-spaced portions of the metric
+`histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history
+mechanics in each of them. Instead all available values are summed and counted to be sent as the simplified CloudWatch
+StatisticSet. In this way, multiple submissions at the same time aggregate predictably with the standard CloudWatch UI
+functions. As a consequence, any new process using these abstractions when viewed in CloudWatch as *sums* or *samples*
+over time will steadily grow until the Codahale Metrics Reservoir decides to eject values: see
+[Codahale Metrics: Histograms](http://metrics.codahale.com/manual/core/#histograms). Viewing these metrics as
+*averages* in CloudWatch is usually the most obvious indication of performance.
+
+
+
+
+Metric Naming
+-------------
+
+The CloudWatchReporter constructor optionally accepts a CloudWatch namespace.
+
+There is implicit support for CloudWatch Dimensions should you choose to use them. Any un-spaced portions of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
-in a CloudWatch metric with Metric Name: "CatCounter dev" and one Dimension: [ "breed" => "calico" ].
+in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "breed": "calico" }.
+
 
 
 Usage
 -----
 
-This artifact while useful isn't really "complete" in our opinion and so will live as a snapshot in
-
     repositories {
-        maven {
-            name = 'sonatype-snapshots'
-            url 'https://oss.sonatype.org/content/repositories/snapshots'
-        }
+        mavenCentral()
     }
-
-as
 
     dependencies {
-        compile 'com.blacklocus:metrics-cloudwatch:0.1-SNAPSHOT'
+        compile 'com.blacklocus:metrics-cloudwatch:0.2'
     }
 
-
-
-
-Futures
--------
-
-  - Are there are other Metric computations that are useful to translate into CloudWatch? It seems that some values
-    could be sent just to leverage free tools (e.g. CloudWatch UI) but would be confusing when aggregated - aggregations
-    of aggregations. Example: cluster of machines each sending average computation time per work item. If one machine
-    averages 10ms over 200 items and another 30ms over 100 items. Need to carefully consider how to submit this data
-    to CloudWatch so that the aggregate average over both machines computes correctly to 16.7 ms, *not* 20ms.
+See the test which generates bogus metrics from two simulated machines (threads):
+[CloudWatchReporterTest.java](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/test/java/com/blacklocus/metrics/CloudWatchReporterTest.java)
 
 
 

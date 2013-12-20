@@ -68,6 +68,7 @@ public class CloudWatchReporterTest {
                     metricRegistry.counter("TheCounter TestDim=Yellow").inc(1);
                     metricRegistry.meter("TheMeter").mark();
                     metricRegistry.histogram("TheHistogram").update(1);
+                    metricRegistry.histogram("TheHistogram").update(1);
                     Timer.Context theTimer = metricRegistry.timer("TheTimer").time();
                     Thread.sleep(1000);
                     theTimer.close();
@@ -104,7 +105,7 @@ public class CloudWatchReporterTest {
 
                 while(!Thread.interrupted()) {
                     metricRegistry.counter("TheCounter TestDim=Yellow").inc(2);
-                    metricRegistry.meter("TheMeter").mark(2);
+                    metricRegistry.meter("TheMeter").mark(3);
                     metricRegistry.histogram("TheHistogram").update(2);
                     Timer.Context theTimer = metricRegistry.timer("TheTimer").time();
                     Thread.sleep(500);
@@ -117,7 +118,7 @@ public class CloudWatchReporterTest {
             }
         });
 
-        for (int i = 0; i < 15; i++) {
+        for (int i = 0; i < 60 /* one hour */; i++) {
             System.out.printf("Sleeping... %d minutes elapsed%n", i);
             Thread.sleep(60 * 1000);
         }

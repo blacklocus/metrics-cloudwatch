@@ -20,6 +20,7 @@ import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.cloudwatch.model.StandardUnit;
+import com.amazonaws.services.cloudwatch.model.StatisticSet;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Counting;
 import com.codahale.metrics.Gauge;
@@ -28,7 +29,9 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Sampling;
 import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -60,19 +63,21 @@ public class CloudWatchReporter extends ScheduledReporter {
     private final AmazonCloudWatchAsync cloudWatch;
     private final String metricNamespace;
 
-    private final Map<Metric, Long> lastPolledCounts = new HashMap<Metric, Long>();
+    private final Map<Counting, Long> lastPolledCounts = new HashMap<Counting, Long>();
 
     /**
      * Creates a new {@link ScheduledReporter} instance.
      *
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
-     * @param metricNamespace CloudWatch metric namespace that all metrics reported by this reporter will use
+     * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
+     *                        fall under
      */
     public CloudWatchReporter(MetricRegistry registry, String metricNamespace, AmazonCloudWatchAsync cloudWatch) {
         super(registry, "CloudWatchReporter:" + metricNamespace, ALL, TimeUnit.MINUTES, TimeUnit.MINUTES);
         this.cloudWatch = cloudWatch;
         this.metricNamespace = metricNamespace;
     }
+
 
     @Override
     public void report(SortedMap<String, Gauge> gauges,
@@ -82,12 +87,14 @@ public class CloudWatchReporter extends ScheduledReporter {
                        SortedMap<String, Timer> timers) {
 
         try {
-            List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + histograms.size() +
-                    meters.size() + timers.size()); // something like that
+            List<MetricDatum> data = new ArrayList<MetricDatum>(gauges.size() + counters.size() + meters.size() +
+                    2 * histograms.size() + 2 * timers.size()); // something like that
+
 
             for (Map.Entry<String, Gauge> gaugeEntry : gauges.entrySet()) {
                 DemuxedKey key = new DemuxedKey(gaugeEntry.getKey());
                 Gauge gauge = gaugeEntry.getValue();
+
                 Object valueObj = gauge.getValue();
                 if (valueObj == null) {
                     continue;
@@ -101,22 +108,34 @@ public class CloudWatchReporter extends ScheduledReporter {
             }
 
             for (Map.Entry<String, Counter> counterEntry : counters.entrySet()) {
-                count(counterEntry, "counter", data);
+                DemuxedKey key = new DemuxedKey(counterEntry.getKey());
+                Counter counter = counterEntry.getValue();
+
+                count(key, counter, "counterSum", data);
             }
 
             for (Map.Entry<String, Meter> meterEntry : meters.entrySet()) {
-                count(meterEntry, "meterCount", data);
+                DemuxedKey key = new DemuxedKey(meterEntry.getKey());
+                Meter meter = meterEntry.getValue();
+
+                count(key, meter, "meterSum", data);
+            }
+
+            for (Map.Entry<String, Histogram> histogramEntry : histograms.entrySet()) {
+                DemuxedKey key = new DemuxedKey(histogramEntry.getKey());
+                Histogram histogram = histogramEntry.getValue();
+
+                count(key, histogram, "histogramCount", data);
+                sampling(key, histogram, 1.0, "histogramSum", data);
             }
 
             for (Map.Entry<String, Timer> timerEntry : timers.entrySet()) {
-                count(timerEntry, "timerCount", data);
-            }
+                DemuxedKey key = new DemuxedKey(timerEntry.getKey());
+                Timer timer = timerEntry.getValue();
 
-            // No translations yet. Note that Histogram implements Counting but this is not submitted as that
-            // returns a samples count, not a total of all values given to the histogram. Histograms do not
-            // by definition store or expose any sort of running total. Observed CloudWatch histogram count metrics
-            // will not manifest like other count-like metrics and so have not been included in the same way.
-            for (Map.Entry<String, Histogram> histogramEntry : histograms.entrySet()) {
+                count(key, timer, "timerCount", data);
+                // nanos -> millis
+                sampling(key, timer, 0.000001, "timerSum", data);
 
             }
 
@@ -149,21 +168,35 @@ public class CloudWatchReporter extends ScheduledReporter {
         }
     }
 
-    private <T extends Metric & Counting> T count(Map.Entry<String, T> countingEntry, String type, Collection<MetricDatum> data) {
-        DemuxedKey key = new DemuxedKey(countingEntry.getKey());
-        T counting = countingEntry.getValue();
 
-        long count = counting.getCount();
-        Long lastCount = lastPolledCounts.get(counting);
+    private void count(DemuxedKey key, Counting metric, String type, Collection<MetricDatum> data) {
+        long count = metric.getCount();
+        Long lastCount = lastPolledCounts.get(metric);
         if (lastCount == null) {
             lastCount = 0L;
         }
         double diff = count - lastCount;
-        lastPolledCounts.put(counting, count);
+        lastPolledCounts.put(metric, count);
 
         data.add(key.newDatum(type).withValue(diff).withUnit(StandardUnit.Count));
+    }
 
-        return counting;
+    /**
+     * @param rescale the submitted sum by this multiplier. 1.0 is the identity (no rescale).
+     */
+    private void sampling(DemuxedKey key, Sampling metric, double rescale, String type, Collection<MetricDatum> data) {
+        Snapshot snapshot = metric.getSnapshot();
+        data.add(key.newDatum(type).withStatisticValues(new StatisticSet()
+                .withSum(sum(snapshot.getValues()) * rescale)
+                .withSampleCount((double) snapshot.size())
+                .withMinimum((double) snapshot.getMin())
+                .withMaximum((double) snapshot.getMax())));
+    }
+
+    private long sum(long[] values) {
+        long sum = 0L;
+        for (long value : values) sum += value;
+        return sum;
     }
 
     static final MetricFilter ALL = new MetricFilter() {
@@ -196,6 +229,9 @@ public class CloudWatchReporter extends ScheduledReporter {
             this.name = name.toString();
         }
 
+        /**
+         * @return new MetricDatum initialized with {@link #name} and {@link #dimensions}
+         */
         MetricDatum newDatum(String type) {
             List<Dimension> dimensions = new ArrayList<Dimension>(this.dimensions.size() + 1);
             dimensions.add(new Dimension().withName(METRIC_TYPE).withValue(type));
@@ -203,4 +239,5 @@ public class CloudWatchReporter extends ScheduledReporter {
             return new MetricDatum().withMetricName(name).withDimensions(dimensions);
         }
     }
+
 }
