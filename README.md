@@ -7,17 +7,15 @@ These translations have been made to CloudWatch. Generally only the atomic data 
 predictably aggregated via the CloudWatch API or UI. Codehale Metrics instances are NOT reset on
 each CloudWatch report so they retain their original, reflective functionality.
 
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
 | Metric    | Type           | sent statistic meaning per interval                                                     |
-| ========= | ============== | ======================================================================================= |
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
 | Gauge     | gauge          | current value (if numeric)                                                              |
 | Counter   | counterSum     | change in sum since last report                                                         |
 | Meter     | meterSum       | change in sum since last report                                                         |
 | Histogram | histogramCount | change in samples since last report                                                     |
-| Histogram | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
+|           | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
 | Timer     | timerCount     | change in samples since last report                                                     |
-| Timer     | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
+|           | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
 
 `histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history
 mechanics in each of them. Instead all available values are summed and counted to be sent as the simplified CloudWatch
