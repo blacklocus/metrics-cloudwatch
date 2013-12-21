@@ -31,7 +31,9 @@ Metric Naming
 -------------
 
 The CloudWatchReporter constructor optionally accepts a CloudWatch namespace and permutation suffixes. Refer to
-constructor java-doc for detail on permutation suffixes []().
+[constructor java-doc](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/main/java/com/blacklocus/metrics/CloudWatchReporter.java#L123).
+for detail on permutation suffixes
+
 
 There is implicit support for CloudWatch Dimensions should you choose to use them. Any un-spaced portions of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
