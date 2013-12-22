@@ -34,17 +34,13 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,12 +48,18 @@ import java.util.SortedMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.collect.Iterables.concat;
-import static com.google.common.collect.Iterables.filter;
-import static com.google.common.collect.Iterables.transform;
-import static com.google.common.collect.Lists.newArrayList;
-
 /**
+ * TODO document METRIC_TYPE_DIMENSION
+ *
+ * <h2>Custom dimensions</h2>
+ *
+ * CloudWatch does not aggregate over dimensions on custom metrics, see
+ * http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension
+ * To achieve similar convenience, we can submit metrics in duplicate, once for each tuple of attributes against which
+ * we would aggregate metrics.
+ *
+ * TODO document NAME_TOKEN_DELIMITER NAME_DIMENSION_SEPARATOR NAME_PERMUTATION_MARKER
+ *
  * @author Jason Dunkelberger (dirkraft)
  */
 public class CloudWatchReporter extends ScheduledReporter {
@@ -77,7 +79,13 @@ public class CloudWatchReporter extends ScheduledReporter {
     public static final String NAME_DIMENSION_SEPARATOR = "=";
 
     /**
-     * {@link Dimension#name}
+     * If any token, whether a simple string or a dimension pair ends with this marker, then metrics will be sent once
+     * with and once without.
+     */
+    public static final String NAME_PERMUTATION_MARKER = "*";
+
+    /**
+     * Key of {@link Dimension#name} for the type of metric submission, e.g. gauge, counterSum, meterSum, ...
      */
     public static final String METRIC_TYPE_DIMENSION = "type";
 
@@ -87,31 +95,16 @@ public class CloudWatchReporter extends ScheduledReporter {
      */
     private final String metricNamespace;
 
-    /**
-     * Once constructed these segments are ready to be appended to metric names before being transformed into
-     * DemuxedKeys.
-     */
-    private final Collection<String> permutations;
     private final AmazonCloudWatchAsync cloudWatch;
 
     private final Map<Counting, Long> lastPolledCounts = new HashMap<Counting, Long>();
 
 
     /**
-     * @see #CloudWatchReporter(MetricRegistry, String, AmazonCloudWatchAsync, Collection)
+     * @see #CloudWatchReporter(MetricRegistry, String, AmazonCloudWatchAsync)
      */
     public CloudWatchReporter(MetricRegistry registry, AmazonCloudWatchAsync cloudWatch) {
         this(registry, null, cloudWatch);
-    }
-
-    /**
-     * @see #CloudWatchReporter(MetricRegistry, String, AmazonCloudWatchAsync, Collection)
-     */
-    public CloudWatchReporter(MetricRegistry registry,
-                              String metricNamespace,
-                              AmazonCloudWatchAsync cloudWatch,
-                              String... permutations) {
-        this(registry, metricNamespace, cloudWatch, Arrays.asList(permutations));
     }
 
     /**
@@ -120,36 +113,15 @@ public class CloudWatchReporter extends ScheduledReporter {
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
      *                        fall under
-     * @param permutations    (optional) CloudWatch does not aggregate over dimensions on custom metrics, see
-     *                        http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension
-     *                        To achieve similar convenience, we can submit metrics in duplicate, once for each
-     *                        group we want to aggregate. Each entry is effectively appended onto the end of the metric
-     *                        name before the name is divided up into the CloudWatch {@link MetricDatum#getMetricName()}
-     *                        and {@link MetricDatum#getDimensions()}.
      */
     public CloudWatchReporter(MetricRegistry registry,
                               String metricNamespace,
-                              AmazonCloudWatchAsync cloudWatch,
-                              Collection<String> permutations) {
+                              AmazonCloudWatchAsync cloudWatch) {
 
         super(registry, "CloudWatchReporter:" + metricNamespace, ALL, TimeUnit.MINUTES, TimeUnit.MINUTES);
 
         this.metricNamespace = metricNamespace;
         this.cloudWatch = cloudWatch;
-
-        permutations = permutations != null ? permutations : Collections.<String>emptyList();
-        // The first empty string covers the metric under
-        this.permutations = newArrayList(concat(Arrays.asList(""), transform(filter(permutations, new Predicate<String>() {
-            @Override
-            public boolean apply(String input) {
-                return StringUtils.isNotBlank(input);
-            }
-        }), new Function<String, String>() {
-            @Override
-            public String apply(String input) {
-                return NAME_TOKEN_DELIMITER + input.trim();
-            }
-        })));
     }
 
 
@@ -161,8 +133,9 @@ public class CloudWatchReporter extends ScheduledReporter {
                        SortedMap<String, Timer> timers) {
 
         try {
-            List<MetricDatum> data = new ArrayList<MetricDatum>((1 + permutations.size()) *
-                    (gauges.size() + counters.size() + meters.size() + 2 * histograms.size() + 2 * timers.size()));
+            List<MetricDatum> data = new ArrayList<MetricDatum>(
+                    gauges.size() + counters.size() + meters.size() + 2 * histograms.size() + 2 * timers.size()
+            );
             // something like that
 
 
@@ -228,21 +201,29 @@ public class CloudWatchReporter extends ScheduledReporter {
 
         String valueStr = valueObj.toString();
         if (NumberUtils.isNumber(valueStr)) {
-            for (String permutation : permutations) {
-                DemuxedKey key = new DemuxedKey(gaugeEntry.getKey() + permutation);
-                Number value = NumberUtils.createNumber(valueStr);
-                data.add(key.newDatum(type).withValue(value.doubleValue()));
-            }
+            final Number value = NumberUtils.createNumber(valueStr);
+
+            DemuxedKey key = new DemuxedKey(gaugeEntry.getKey());
+            Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
+                @Override
+                public MetricDatum apply(MetricDatum datum) {
+                    return datum.withValue(value.doubleValue());
+                }
+            }));
         }
     }
 
     void reportCounter(Map.Entry<String, ? extends Counting> entry, String type, List<MetricDatum> data) {
         Counting metric = entry.getValue();
-        long diff = diffLast(metric);
-        for (String permutation : permutations) {
-            DemuxedKey key = new DemuxedKey(entry.getKey() + permutation);
-            data.add(key.newDatum(type).withValue((double) diff).withUnit(StandardUnit.Count));
-        }
+        final long diff = diffLast(metric);
+
+        DemuxedKey key = new DemuxedKey(entry.getKey());
+        Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
+            @Override
+            public MetricDatum apply(MetricDatum datum) {
+                return datum.withValue((double) diff).withUnit(StandardUnit.Count);
+            }
+        }));
     }
 
     /**
@@ -252,15 +233,19 @@ public class CloudWatchReporter extends ScheduledReporter {
         Sampling metric = entry.getValue();
         Snapshot snapshot = metric.getSnapshot();
         double scaledSum = sum(snapshot.getValues()) * rescale;
-        for (String permutation : permutations) {
-            DemuxedKey key = new DemuxedKey(entry.getKey() + permutation);
-            data.add(key.newDatum(type).withStatisticValues(new StatisticSet()
-                    .withSum(scaledSum)
-                    .withSampleCount((double) snapshot.size())
-                    .withMinimum((double) snapshot.getMin())
-                    .withMaximum((double) snapshot.getMax())
-            ));
-        }
+        final StatisticSet statisticSet = new StatisticSet()
+                .withSum(scaledSum)
+                .withSampleCount((double) snapshot.size())
+                .withMinimum((double) snapshot.getMin())
+                .withMaximum((double) snapshot.getMax());
+
+        DemuxedKey key = new DemuxedKey(entry.getKey());
+        Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
+            @Override
+            public MetricDatum apply(MetricDatum datum) {
+                return datum.withStatisticValues(statisticSet);
+            }
+        }));
     }
 
 
@@ -289,39 +274,5 @@ public class CloudWatchReporter extends ScheduledReporter {
             return true;
         }
     };
-
-    static class DemuxedKey {
-
-        final String name;
-        final Collection<Dimension> dimensions = new ArrayList<Dimension>();
-
-        DemuxedKey(String s) {
-            String[] segments = s.split(NAME_TOKEN_DELIMITER);
-            StringBuilder name = new StringBuilder(segments[0]);
-
-            for (int i = 1; i < segments.length; i++) {
-                String segment = segments[i];
-
-                if (segment.contains(NAME_DIMENSION_SEPARATOR)) {
-                    String[] dimension = segment.split(NAME_DIMENSION_SEPARATOR, 2);
-                    dimensions.add(new Dimension().withName(dimension[0]).withValue(dimension[1]));
-                } else {
-                    name.append(" ").append(segment);
-                }
-            }
-
-            this.name = name.toString();
-        }
-
-        /**
-         * @return new MetricDatum initialized with {@link #name} and {@link #dimensions}
-         */
-        MetricDatum newDatum(String type) {
-            List<Dimension> dimensions = new ArrayList<Dimension>(this.dimensions.size() + 1);
-            dimensions.add(new Dimension().withName(METRIC_TYPE_DIMENSION).withValue(type));
-            dimensions.addAll(this.dimensions);
-            return new MetricDatum().withMetricName(name).withDimensions(dimensions);
-        }
-    }
 
 }
