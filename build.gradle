@@ -1,5 +1,5 @@
 group = 'com.blacklocus'
-version = '0.3'
+version = '0.4-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -79,9 +79,9 @@ uploadArchives {
 
         repository(
                 // for snapshots
-//                url: "https://oss.sonatype.org/content/repositories/snapshots/"
+                url: "https://oss.sonatype.org/content/repositories/snapshots/"
                 // for staging/release
-                url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+//                url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
         ) {
             authentication(userName: sonatypeUsername, password: sonatypePassword)
         }
