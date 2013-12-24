@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <h2>Custom dimensions</h2>
  *
- * CloudWatch does not aggregate over dimensions on custom metrics, see
+ * CloudWatch does not aggregate over dimensionChain on custom metrics, see
  * http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension
  * To achieve similar convenience, we can submit metrics in duplicate, once for each tuple of attributes against which
  * we would aggregate metrics.
@@ -70,7 +70,7 @@ public class CloudWatchReporter extends ScheduledReporter {
     /**
      * Delimiter of tokens in the metric name. Plain tokens will be retained as the CloudWatch "Metric Name".
      */
-    public static final String NAME_TOKEN_DELIMITER = " ";
+    public static final String NAME_TOKEN_DELIMITER_RGX = "\\s";
 
     /**
      * Separator of key and value segments of a metric name. These segments will be split into the key and value of
@@ -82,13 +82,18 @@ public class CloudWatchReporter extends ScheduledReporter {
      * If any token, whether a simple string or a dimension pair ends with this marker, then metrics will be sent once
      * with and once without.
      */
-    public static final String NAME_PERMUTATION_MARKER = "*";
+    public static final String NAME_PERMUTE_MARKER = "*";
 
     /**
      * Key of {@link Dimension#name} for the type of metric submission, e.g. gauge, counterSum, meterSum, ...
      */
     public static final String METRIC_TYPE_DIMENSION = "type";
 
+
+    // Should line up with constants. Name should not contain any special character, and may optionally end with the
+    // permute marker.
+    public static final String VALID_NAME_TOKEN_RGX = "[^\\s=\\*]+\\*?";
+    public static final String VALID_DIMENSION_PART_RGX = "[^\\s=\\*]+";
 
     /**
      * Carried into to CloudWatch namespace

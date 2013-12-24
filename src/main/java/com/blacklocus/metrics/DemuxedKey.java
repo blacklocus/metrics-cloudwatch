@@ -3,9 +3,14 @@ package com.blacklocus.metrics;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -13,20 +18,20 @@ import java.util.List;
 */
 class DemuxedKey {
 
-    final PermutableChain<String> names;
-    final PermutableChain<Dimension> dimensions;
+    final PermutableChain<String> nameChain;
+    final PermutableChain<Dimension> dimensionChain;
 
     DemuxedKey(String s) {
-        String[] segments = s.split(CloudWatchReporter.NAME_TOKEN_DELIMITER);
+        String[] segments = s.split(CloudWatchReporter.NAME_TOKEN_DELIMITER_RGX);
 
         PermutableChain<String> names = null;
         PermutableChain<Dimension> dimensions = null;
 
         // Build NameSegmentChain in reverse. Dimension order is irrelevant.
-        for (int i = segments.length - 1; i >= 0; i++) {
+        for (int i = segments.length - 1; i >= 0; i--) {
             String segment = segments[i];
 
-            boolean permutable = segment.endsWith(CloudWatchReporter.NAME_PERMUTATION_MARKER);
+            boolean permutable = segment.endsWith(CloudWatchReporter.NAME_PERMUTE_MARKER);
             if (permutable) {
                 segment = segment.substring(0, segment.length() - 1);
             }
@@ -37,42 +42,117 @@ class DemuxedKey {
                 dimensions = new PermutableChain<Dimension>(dimension, permutable, dimensions);
 
             } else {
-                assert !segment.contains(CloudWatchReporter.NAME_PERMUTATION_MARKER);
+                assert !segment.contains(CloudWatchReporter.NAME_PERMUTE_MARKER);
                 names = new PermutableChain<String>(segment, permutable, names);
             }
         }
 
-        this.names = names;
-        this.dimensions = dimensions;
+        this.nameChain = names;
+        this.dimensionChain = dimensions;
     }
 
-    /**
-     * @return new MetricDatum initialized with {@link #name} and {@link #dimensions}
-     */
     Iterable<MetricDatum> newDatums(String type, Function<MetricDatum, MetricDatum> datumSpecification) {
 
-        // generate Dimension permutations
+        // All dimension sets include the type dimension.
+        PermutableChain<Dimension> withDimensionChain = new PermutableChain<Dimension>(
+                new Dimension().withName(CloudWatchReporter.METRIC_TYPE_DIMENSION).withValue(type),
+                false,
+                dimensionChain
+        );
 
+        List<MetricDatum> data = new ArrayList<MetricDatum>();
 
+        for (Iterable<String> nameSet : nameChain) {
+            String name = StringUtils.join(nameSet, " ");
+            if (StringUtils.isBlank(name)) {
+                // If all name segments are permutable, there is one combination where all of them are omitted.
+                // This is expected and supported but of course can not be submitted.
+                continue;
+            }
+            for (Iterable<Dimension> dimensionSet : withDimensionChain) {
+                data.add(datumSpecification.apply(
+                        new MetricDatum().withMetricName(name).withDimensions(Lists.newArrayList(dimensionSet))
+                ));
+            }
+        }
 
-        return null;
-//            return Iterables.concat(Arrays.asList(), null);
-//        dimensions.add(new Dimension().withName(CloudWatchReporter.METRIC_TYPE_DIMENSION).withValue(type));
-//        dimensions.addAll(this.dimensions);
-//        return new MetricDatum().withMetricName(name).withDimensions(dimensions);
+        return data;
     }
 }
 
-class PermutableChain<T> {
+class PermutableChain<T> implements Iterable<Iterable<T>> {
 
     final T token;
     final boolean permutable;
-    final PermutableChain nextSegment;
+    final PermutableChain<T> nextSegment;
 
 
-    PermutableChain(T token, boolean permutable, PermutableChain nextSegment) {
+    PermutableChain(T token, boolean permutable, PermutableChain<T> nextSegment) {
         this.token = token;
         this.permutable = permutable;
         this.nextSegment = nextSegment;
     }
+
+    @Override
+    public Iterator<Iterable<T>> iterator() {
+        return new Iterator<Iterable<T>>() {
+
+            int permutation = permutable ? 2 : 1;
+            Iterator<Iterable<T>> nextSegmentIt = nextSegment == null ? null : nextSegment.iterator();
+
+            @Override
+            public boolean hasNext() {
+                boolean isTail = nextSegmentIt == null;
+                if (isTail) {
+                    return permutation > 0;
+                } else {
+                    return permutation > 0 && nextSegmentIt != null && nextSegmentIt.hasNext();
+                }
+            }
+
+            @Override
+            public Iterable<T> next() {
+                assert permutation > 0 && permutation <= 2;
+                boolean isTail = nextSegmentIt == null;
+                if (isTail) {
+                    if (permutation == 2) {
+                        permutation = 1;
+                        return Collections.emptyList();
+                    } else {
+                        assert permutation == 1;
+                        permutation = 0;
+                        return ImmutableList.of(token);
+                    }
+                } else {
+                    if (permutation == 2) {
+                        Iterable<T> next = nextSegmentIt.next();
+                        if (!nextSegmentIt.hasNext()) {
+                            permutation = 1;
+                            nextSegmentIt = nextSegment.iterator();
+                        }
+                        return next;
+                    } else {
+                        assert permutation == 1;
+                        Iterable<T> next = Iterables.concat(ImmutableList.of(token), nextSegmentIt.next());
+                        if (!nextSegmentIt.hasNext()) {
+                            permutation = 0;
+                            nextSegmentIt = null;
+                        }
+                        return next;
+                    }
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("Nope.");
+            }
+        };
+    }
+    /*
+    Three option*
+    hasNext == tail && exhausted || next.hasNext()   next: return
+    Three -> ""
+    Three -> option
+     */
 }

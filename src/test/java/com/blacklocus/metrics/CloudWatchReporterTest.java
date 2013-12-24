@@ -47,8 +47,7 @@ public class CloudWatchReporterTest {
                 new CloudWatchReporter(
                         metricRegistry,
                         CloudWatchReporterTest.class.getSimpleName(),
-                        new AmazonCloudWatchAsyncClient(),
-                        "machineId=1.2.3.4", "machineId=1.2.3.4 someTag"
+                        new AmazonCloudWatchAsyncClient()
                 ).start(1, TimeUnit.MINUTES);
 
                 metricRegistry.register("TheGauge", new Gauge<Long>() {
