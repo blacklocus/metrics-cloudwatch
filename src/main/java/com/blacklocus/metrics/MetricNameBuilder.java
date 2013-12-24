@@ -1,12 +1,16 @@
 package com.blacklocus.metrics;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.blacklocus.metrics.CloudWatchReporter.NAME_DIMENSION_SEPARATOR;
 import static com.blacklocus.metrics.CloudWatchReporter.NAME_PERMUTE_MARKER;
+import static com.blacklocus.metrics.CloudWatchReporter.NAME_TOKEN_DELIMITER;
+import static com.blacklocus.metrics.CloudWatchReporter.NAME_TOKEN_DELIMITER_RGX;
 import static com.blacklocus.metrics.CloudWatchReporter.VALID_DIMENSION_PART_RGX;
 import static com.blacklocus.metrics.CloudWatchReporter.VALID_NAME_TOKEN_RGX;
 
@@ -15,12 +19,15 @@ import static com.blacklocus.metrics.CloudWatchReporter.VALID_NAME_TOKEN_RGX;
  *
  * @author Jason Dunkelberger (dirkraft)
  */
-public class MetricsNameBuilder {
+public class MetricNameBuilder {
 
     private final List<String> names = new ArrayList<String>();
     private final List<String> dimensions = new ArrayList<String>();
 
-    public MetricsNameBuilder(String nameSpec) {
+    public MetricNameBuilder() {
+    }
+
+    public MetricNameBuilder(String nameSpec) {
         add(nameSpec);
     }
 
@@ -30,7 +37,7 @@ public class MetricsNameBuilder {
      * @return this for chaining
      * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addNameToken(String nameToken) throws MetricsNameSyntaxException {
+    public MetricNameBuilder addNameToken(String nameToken) throws MetricsNameSyntaxException {
         nameToken = nameToken.trim();
         if (!nameToken.matches(VALID_NAME_TOKEN_RGX)) {
             throw new MetricsNameSyntaxException("Name must match " + VALID_NAME_TOKEN_RGX);
@@ -45,8 +52,9 @@ public class MetricsNameBuilder {
      *                {@value CloudWatchReporter#VALID_NAME_TOKEN_RGX} (it may end in the permute operator).
      * @param permute whether or not this token should permute
      * @return this for chaining
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addNameToken(String nameToken, boolean permute) {
+    public MetricNameBuilder addNameToken(String nameToken, boolean permute) throws MetricsNameSyntaxException {
         if (permute && !nameToken.endsWith(NAME_PERMUTE_MARKER)) {
             nameToken += NAME_PERMUTE_MARKER;
         } else if (!permute && nameToken.endsWith(NAME_PERMUTE_MARKER)) {
@@ -59,23 +67,32 @@ public class MetricsNameBuilder {
      * @param nameSpec a string of encoded name tokens and dimensions, e.g. "MyMetric SomeTag* color=green machine=1.2.3.4*".
      *                 A metric name of this format is already suitable for direct use with metrics reported by the
      *                 {@link CloudWatchReporter} and demuxes into corresponding dimensions and permutations.
-     *                 There is no need to use a MetricsNameBuilder if you already have this string. Set it directly
-     *                 to be the metric name, e.g. <pre>
+     *                 There is no need to use a MetricsNameBuilder if you already have the completed string. Set it
+     *                 directly to be the metric name, e.g. <pre>
      *                     metricRegistry.counter("MyMetric SomeTag* color=green machine=1.2.3.4*").inc();
      *                 </pre>
      * @return this for chaining
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder add(String nameSpec) {
-
+    public MetricNameBuilder add(String nameSpec) throws MetricsNameSyntaxException {
+        for (String token : nameSpec.split(NAME_TOKEN_DELIMITER_RGX)) {
+            if (token.contains(NAME_DIMENSION_SEPARATOR)) {
+                String[] dimensionTuple = token.split(NAME_DIMENSION_SEPARATOR, 2);
+                addDimension(dimensionTuple[0], dimensionTuple[1]);
+            } else {
+                addNameToken(token);
+            }
+        }
+        return this;
     }
 
     /**
      * {@link #addDimension(Dimension, boolean)} without permutation (false)
      *
      * @return this for chaining
-     * @throws MetricsNameSyntaxException
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addDimension(Dimension dimension) throws MetricsNameSyntaxException {
+    public MetricNameBuilder addDimension(Dimension dimension) throws MetricsNameSyntaxException {
         return addDimension(dimension, false);
     }
 
@@ -83,9 +100,9 @@ public class MetricsNameBuilder {
      * Passes into {@link #addDimension(String, String, boolean)}
      *
      * @return this for chaining
-     * @throws MetricsNameSyntaxException
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addDimension(Dimension dimension, boolean permute) {
+    public MetricNameBuilder addDimension(Dimension dimension, boolean permute) throws MetricsNameSyntaxException {
         return addDimension(dimension.getName(), dimension.getValue(), false);
     }
 
@@ -93,36 +110,42 @@ public class MetricsNameBuilder {
      * {@link #addDimension(String, String, boolean)} without permutation (false)
      *
      * @return this for chaining
-     * @throws MetricsNameSyntaxException
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addDimension(String name, String value) {
-
+    public MetricNameBuilder addDimension(String name, String value) throws MetricsNameSyntaxException {
+        return addDimension(name, value, false);
     }
 
     /**
-     *
-     * @param name
-     * @param value
-     * @param permute
+     * @param name of dimension
+     * @param value of dimension
+     * @param permute permutability of dimension
      * @return this for chaining
-     * @throws MetricsNameSyntaxException
+     * @throws MetricsNameSyntaxException on validation failure
      */
-    public MetricsNameBuilder addDimension(String name, String value, boolean permute) {
-        if (!dimensionName.matches(VALID_DIMENSION_PART_RGX)) {
+    public MetricNameBuilder addDimension(String name, String value, boolean permute) throws MetricsNameSyntaxException {
+        if (!name.matches(VALID_DIMENSION_PART_RGX)) {
             throw new MetricsNameSyntaxException("Dimension name must match " + VALID_DIMENSION_PART_RGX);
         }
-        if (!dimensionValue.matches(VALID_DIMENSION_PART_RGX)) {
+        if (!value.matches(VALID_DIMENSION_PART_RGX)) {
             throw new MetricsNameSyntaxException("Dimension name must match " + VALID_DIMENSION_PART_RGX);
         }
 
-        this.dimensions.add(dimensionName + NAME_DIMENSION_SEPARATOR + dimensionValue);
+        this.dimensions.add(name + NAME_DIMENSION_SEPARATOR + value + (permute ? NAME_PERMUTE_MARKER : ""));
         return this;
 
     }
 
     @Override
     public String toString() {
-
+        StringBuilder sb = new StringBuilder();
+        for (Iterator<String> iterator = Iterables.concat(names, dimensions).iterator(); iterator.hasNext(); ) {
+            sb.append(iterator.next());
+            if (iterator.hasNext()) {
+                sb.append(NAME_TOKEN_DELIMITER);
+            }
+        }
+        return sb.toString();
     }
 
 

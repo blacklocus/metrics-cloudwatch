@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
  * One dimension is always included with the dimension name defined in {@link #METRIC_TYPE_DIMENSION}. This corresponds
  * to a type of metric submissions to CloudWatch.
  * <p>
- * Refer to README.md for documentation on metric submission types
+ * Refer to README.md for documentation on metric submission types.
  *
  * <h2>Custom dimensions</h2>
  *
@@ -77,6 +77,8 @@ public class CloudWatchReporter extends ScheduledReporter {
      * Delimiter of tokens in the metric name. Plain tokens will be retained as the CloudWatch "Metric Name".
      */
     public static final String NAME_TOKEN_DELIMITER_RGX = "\\s";
+    // For building; should qualify against NAME_TOKEN_DELIMITER_RGX
+    public static final String NAME_TOKEN_DELIMITER = " ";
 
     /**
      * Separator of key and value segments of a metric name. These segments will be split into the key and value of

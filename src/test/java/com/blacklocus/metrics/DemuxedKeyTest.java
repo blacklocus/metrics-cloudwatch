@@ -9,8 +9,9 @@ import com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Jason Dunkelberger (dirkraft)
@@ -54,12 +55,20 @@ public class DemuxedKeyTest {
         List<MetricDatum> data = Lists.newArrayList(key.newDatums("test", Functions.<MetricDatum>identity()));
         Assert.assertEquals(1, data.size());
         MetricDatum metricDatum = data.get(0);
-
+        Assert.assertEquals("wheee token", metricDatum.getMetricName());
+        Assert.assertEquals(3, metricDatum.getDimensions().size());
+        Assert.assertTrue(containsExactly(data, d("type", "test", "color", "orange", "animal", "okapi")));
     }
 
     @Test
-    public void testMixedNameAndDimension() {
-
+    public void testMixedNameAndDimensionPerm() {
+        DemuxedKey key = new DemuxedKey("wheee* color=orange* token animal=okapi");
+        List<MetricDatum> data = Lists.newArrayList(key.newDatums("pickle", Functions.<MetricDatum>identity()));
+        Assert.assertEquals(4, data.size());
+        Assert.assertTrue(containsExactly(data, "token", "wheee token"));
+        Assert.assertTrue(containsExactly(data,
+                d("type", "pickle", "animal", "okapi"),
+                d("type", "pickle", "animal", "okapi", "color", "orange")));
     }
 
     @Test
@@ -105,11 +114,6 @@ public class DemuxedKeyTest {
         ));
     }
 
-    @Test
-    public void testComplex() {
-
-    }
-
     boolean containsExactly(List<MetricDatum> data, String... names) {
         return Sets.symmetricDifference(Sets.newHashSet(Lists.transform(data, new Function<MetricDatum, String>() {
             @Override
@@ -119,17 +123,17 @@ public class DemuxedKeyTest {
         })), Sets.newHashSet(names)).isEmpty();
     }
 
-    boolean containsExactly(List<MetricDatum> data, List<Dimension>... dimensions) {
-        return Sets.symmetricDifference(Sets.newHashSet(Lists.transform(data, new Function<MetricDatum, List<Dimension>>() {
+    boolean containsExactly(List<MetricDatum> data, Set<Dimension>... dimensions) {
+        return Sets.newHashSet(Lists.transform(data, new Function<MetricDatum, Set<Dimension>>() {
             @Override
-            public List<Dimension> apply(MetricDatum input) {
-                return input.getDimensions();
+            public Set<Dimension> apply(MetricDatum input) {
+                return Sets.newHashSet(input.getDimensions());
             }
-        })), Sets.newHashSet(dimensions)).isEmpty();
+        })).equals(Sets.newHashSet(dimensions));
     }
 
-    List<Dimension> d(String... keyValuePairs) {
-        List<Dimension> dimensions = new ArrayList<Dimension>(keyValuePairs.length / 2);
+    Set<Dimension> d(String... keyValuePairs) {
+        Set<Dimension> dimensions = new HashSet<Dimension>(keyValuePairs.length / 2);
         for (int i = 0; i < keyValuePairs.length; i+= 2) {
             dimensions.add(new Dimension().withName(keyValuePairs[i]).withValue(keyValuePairs[i + 1]));
         }
