@@ -65,7 +65,7 @@ public class CloudWatchReporterTest {
                 });
 
                 while(!Thread.interrupted()) {
-                    metricRegistry.counter("TheCounter TestDim=Yellow TestToken machine=number1*").inc(1);
+                    metricRegistry.counter("TheCounter TestDim=Yellow TestToken* machine=number1*").inc(1);
                     metricRegistry.meter("TheMeter").mark();
                     metricRegistry.histogram("TheHistogram").update(1);
                     metricRegistry.histogram("TheHistogram").update(1);
