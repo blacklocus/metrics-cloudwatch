@@ -49,7 +49,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * TODO document METRIC_TYPE_DIMENSION
+ * <h2>Included dimension</h2>
+ *
+ * One dimension is always included with the dimension name defined in {@link #METRIC_TYPE_DIMENSION}. This corresponds
+ * to a type of metric submissions to CloudWatch.
+ * <p>
+ * Refer to README.md for documentation on metric submission types
  *
  * <h2>Custom dimensions</h2>
  *
@@ -57,8 +62,9 @@ import java.util.concurrent.TimeUnit;
  * http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension
  * To achieve similar convenience, we can submit metrics in duplicate, once for each tuple of attributes against which
  * we would aggregate metrics.
+ * <p>
+ * Refer to README.md for documentation on the name-encoded syntax of dimensions and permutable components.
  *
- * TODO document NAME_TOKEN_DELIMITER NAME_DIMENSION_SEPARATOR NAME_PERMUTATION_MARKER
  *
  * @author Jason Dunkelberger (dirkraft)
  */

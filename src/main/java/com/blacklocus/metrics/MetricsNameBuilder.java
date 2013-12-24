@@ -70,13 +70,44 @@ public class MetricsNameBuilder {
     }
 
     /**
-     * @param dimension
+     * {@link #addDimension(Dimension, boolean)} without permutation (false)
+     *
      * @return this for chaining
      * @throws MetricsNameSyntaxException
      */
     public MetricsNameBuilder addDimension(Dimension dimension) throws MetricsNameSyntaxException {
-        String dimensionName = dimension.getName();
-        String dimensionValue = dimension.getValue();
+        return addDimension(dimension, false);
+    }
+
+    /**
+     * Passes into {@link #addDimension(String, String, boolean)}
+     *
+     * @return this for chaining
+     * @throws MetricsNameSyntaxException
+     */
+    public MetricsNameBuilder addDimension(Dimension dimension, boolean permute) {
+        return addDimension(dimension.getName(), dimension.getValue(), false);
+    }
+
+    /**
+     * {@link #addDimension(String, String, boolean)} without permutation (false)
+     *
+     * @return this for chaining
+     * @throws MetricsNameSyntaxException
+     */
+    public MetricsNameBuilder addDimension(String name, String value) {
+
+    }
+
+    /**
+     *
+     * @param name
+     * @param value
+     * @param permute
+     * @return this for chaining
+     * @throws MetricsNameSyntaxException
+     */
+    public MetricsNameBuilder addDimension(String name, String value, boolean permute) {
         if (!dimensionName.matches(VALID_DIMENSION_PART_RGX)) {
             throw new MetricsNameSyntaxException("Dimension name must match " + VALID_DIMENSION_PART_RGX);
         }
@@ -86,28 +117,18 @@ public class MetricsNameBuilder {
 
         this.dimensions.add(dimensionName + NAME_DIMENSION_SEPARATOR + dimensionValue);
         return this;
-    }
-
-    public MetricsNameBuilder addDimension(Dimension dimension, boolean permute) {
 
     }
 
-    public MetricsNameBuilder addDimension(String name, String value) {
-        return addDimension(new Dimension().withName(name).withValue(value));
-    }
-
-    public MetricsNameBuilder addDimension(String name, String value, boolean permute) {
+    @Override
+    public String toString() {
 
     }
+
 
     public static class MetricsNameSyntaxException extends RuntimeException {
         public MetricsNameSyntaxException(String message) {
             super(message);
         }
-    }
-
-    @Override
-    public String toString() {
-        return super.toString();    //TODO jason
     }
 }
