@@ -1,3 +1,18 @@
+/**
+ * Copyright 2013 BlackLocus
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.blacklocus.metrics;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -50,6 +65,7 @@ public class DemuxedKeyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMultiDimension() {
         DemuxedKey key = new DemuxedKey("wheee color=orange token animal=okapi");
         List<MetricDatum> data = Lists.newArrayList(key.newDatums("test", Functions.<MetricDatum>identity()));
@@ -61,6 +77,7 @@ public class DemuxedKeyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMixedNameAndDimensionPerm() {
         DemuxedKey key = new DemuxedKey("wheee* color=orange* token animal=okapi");
         List<MetricDatum> data = Lists.newArrayList(key.newDatums("pickle", Functions.<MetricDatum>identity()));
@@ -101,6 +118,7 @@ public class DemuxedKeyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMultiPermDimensions() {
         DemuxedKey key = new DemuxedKey("Name key=value* color=green* machine=localhost");
         List<MetricDatum> data = Lists.newArrayList(key.newDatums("testMultiPermDimensions", Functions.<MetricDatum>identity()));
