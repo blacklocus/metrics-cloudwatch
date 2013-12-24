@@ -54,7 +54,8 @@ import java.util.concurrent.TimeUnit;
  * One dimension is always included with the dimension name defined in {@link #METRIC_TYPE_DIMENSION}. This corresponds
  * to a type of metric submissions to CloudWatch.
  * <p>
- * Refer to README.md for documentation on metric submission types.
+ * Refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for documentation on
+ * metric submission types.
  *
  * <h2>Custom dimensions</h2>
  *
@@ -63,7 +64,8 @@ import java.util.concurrent.TimeUnit;
  * To achieve similar convenience, we can submit metrics in duplicate, once for each tuple of attributes against which
  * we would aggregate metrics.
  * <p>
- * Refer to README.md for documentation on the name-encoded syntax of dimensions and permutable components.
+ * Refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for documentation on
+ * the name-encoded syntax of dimensions and permutable components.
  *
  *
  * @author Jason Dunkelberger (dirkraft)
@@ -229,6 +231,11 @@ public class CloudWatchReporter extends ScheduledReporter {
     void reportCounter(Map.Entry<String, ? extends Counting> entry, String type, List<MetricDatum> data) {
         Counting metric = entry.getValue();
         final long diff = diffLast(metric);
+        if (diff == 0) {
+            // Don't submit metrics that have not changed. No reason to keep these alive. Also saves on CloudWatch
+            // costs.
+            return;
+        }
 
         DemuxedKey key = new DemuxedKey(entry.getKey());
         Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {

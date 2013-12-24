@@ -16,6 +16,7 @@
 package com.blacklocus.metrics;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
@@ -151,6 +152,18 @@ public class MetricNameBuilder {
 
     }
 
+    /**
+     * @return properly formatted metric name for use with the {@link MetricRegistry}. The CloudWatchReporter will
+     * be able to demux this name spec into corresponding permutable name tokens and dimensions.
+     */
+    public String build() {
+        return toString();
+    }
+
+    /**
+     * @return properly formatted metric name for use with the {@link MetricRegistry}. The CloudWatchReporter will
+     * be able to demux this name spec into corresponding permutable name tokens and dimensions.
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
