@@ -31,6 +31,32 @@ over time will steadily grow until the Codahale Metrics Reservoir decides to eje
 
 
 
+Usage
+-----
+
+
+## Maven Dependency (Gradle) ##
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        compile 'com.blacklocus:metrics-cloudwatch:0.2'
+    }
+
+## Code Integration ##
+
+If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
+all your existing metrics code to CloudWatch. There are certain symbols which if part of metric names will result
+in RuntimeExceptions in the CloudWatchReporter thread. These metrics should be renamed to avoid these symbols
+to be used with the CloudWatchReporter.
+
+See the test which generates bogus metrics from two simulated machines (threads):
+[CloudWatchReporterTest.java](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/test/java/com/blacklocus/metrics/CloudWatchReporterTest.java)
+
+
+
 Metric Naming
 -------------
 
@@ -42,9 +68,11 @@ Additionally, CloudWatch does not aggregate metrics over dimensions on custom me
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
 As a possible convenience to ourselves we can just submit these metrics in duplicate, once under the narrowly-scope name
 tags or dimensions, and again under the general scope, and whatever combination thereof concerning multiple scopes. This
-is best understood by example.
+is best understood by examples.
 
-> Metrics: Number of Requests to Service X, a Counter with name "ServiceX Requests"
+----------------
+
+> Scenario metric: Number of Requests to Service X, is a Counter with name "ServiceX Requests"
 
 We have multiple machines in the *Service X* cluster. We want metrics over all machines as well as per. To enable
 duplicate submission per each scope (global and per-machine), we could name the counter
@@ -96,33 +124,6 @@ This resolves to all of the following submissions, so be careful about multiplic
   - ServiceX Requests group-tag environment=development machine=1.2.3.4
   - ServiceX Requests group-tag environment=development strategy=dolphin
   - ServiceX Requests group-tag environment=development machine=1.2.3.4 strategy=dolphin
-
-
-
-Usage
------
-
-
-## Maven Dependency (Gradle) ##
-
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        compile 'com.blacklocus:metrics-cloudwatch:0.2'
-    }
-
-## Code Integration ##
-
-If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
-all your existing metrics code to CloudWatch. There are certain symbols which if part of metric names will result
-in RuntimeExceptions in the CloudWatchReporter thread. These metrics should be renamed to avoid these symbols
-to be used with the CloudWatchReporter.
-
-See the test which generates bogus metrics from two simulated machines (threads):
-[CloudWatchReporterTest.java](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/test/java/com/blacklocus/metrics/CloudWatchReporterTest.java)
-
 
 
 
