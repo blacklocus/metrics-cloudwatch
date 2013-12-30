@@ -120,7 +120,6 @@ uploadArchives {
 
 idea {
     project {
-        jdkName = '1.6'
         languageLevel = '1.6'
     }
 }
