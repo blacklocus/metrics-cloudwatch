@@ -1,10 +1,44 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Identifiers
+
 group = 'com.blacklocus'
 version = '0.4.0-SNAPSHOT'
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Plugins
+
 apply plugin: 'java'
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+
 apply plugin: 'maven'
 apply plugin: 'signing'
 apply plugin: 'idea'
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Defines
+
+/** Function always returns a new manifest that can be customized */
+def defaultManifest() {
+    return manifest{
+        def git_cmd = "git rev-parse HEAD"
+        def git_proc = git_cmd.execute()
+        attributes 'SCM-Revision': git_proc.text.trim()
+        attributes 'Timestamp': String.valueOf(System.currentTimeMillis())
+        attributes 'Build-Host': InetAddress.localHost.hostName
+    }
+}
+
+def defaultBlank(closure) {
+    try {
+        closure()
+    } catch (MissingPropertyException e) {
+        ''
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// License
 
 buildscript {
     repositories {
@@ -17,19 +51,12 @@ buildscript {
 }
 apply plugin: 'license'
 
-sourceCompatibility = 1.6
-targetCompatibility = 1.6
-
-/** Function always returns a new manifest that can be customized */
-def defaultManifest() {
-    return manifest{
-        def git_cmd = "git rev-parse HEAD"
-        def git_proc = git_cmd.execute()
-        attributes 'SCM-Revision': git_proc.text.trim()
-        attributes 'Timestamp': String.valueOf(System.currentTimeMillis())
-        attributes 'Build-Host': InetAddress.localHost.hostName
-    }
+license {
+    header rootProject.file('src/license/HEADER')
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Dependencies
 
 repositories {
     mavenCentral()
@@ -46,6 +73,9 @@ dependencies {
     testCompile 'junit:junit:4.11'
     testCompile 'org.slf4j:slf4j-simple:1.7.5'
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Artifacts
 
 jar {
     manifest = defaultManifest()
@@ -69,21 +99,28 @@ artifacts {
     archives sourcesJar
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Publishing
+
 signing {
     sign configurations.archives
 }
 
 uploadArchives {
+    dependsOn licenseFormatMain, licenseFormatTest
     repositories.mavenDeployer {
         beforeDeployment { MavenDeployment deployment -> signPom(deployment) }
 
+        //# ./gradlew -PdeployUrl=http://server/artifactory/repo -PdeployUsername=admin -PdeployPassword=pass uploadArchives
         repository(
+                url: defaultBlank({ deployUrl })
                 // for snapshots
-                url: "https://oss.sonatype.org/content/repositories/snapshots/"
+//                url: "https://oss.sonatype.org/content/repositories/snapshots/"
                 // for staging/release
 //                url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
         ) {
-            authentication(userName: sonatypeUsername, password: sonatypePassword)
+            // If these are not defined assemble needlessly fails for unrelated tasks.
+            authentication(userName: defaultBlank({ deployUsername }), password: defaultBlank({ deployPassword }))
         }
 
         pom.project {
@@ -118,6 +155,9 @@ uploadArchives {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Tooling
+
 idea {
     project {
         languageLevel = '1.6'
@@ -128,6 +168,3 @@ task createWrapper(type: Wrapper) {
     gradleVersion = '1.8'
 }
 
-license {
-    header rootProject.file('src/license/HEADER')
-}
