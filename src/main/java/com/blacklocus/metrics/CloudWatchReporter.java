@@ -34,8 +34,6 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -43,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -179,16 +176,10 @@ public class CloudWatchReporter extends ScheduledReporter {
                 reportSampling(timerEntry, "timerSet", 0.000001, data); // nanos -> millis
             }
 
-            // CloudWatch rejects any Statistic Sets with sample count == 0
-            Collection<MetricDatum> nonEmptyData = Collections2.filter(data, new Predicate<MetricDatum>() {
-                @Override
-                public boolean apply(MetricDatum input) {
-                    return input.getStatisticValues().getSampleCount() > 0;
-                }
-            });
+
             // Each CloudWatch API request may contain at maximum 20 datums.
-            Iterable<List<MetricDatum>> dataPartitions = Iterables.partition(nonEmptyData, 20);
-            List<Future<?>> cloudWatchFutures = Lists.newArrayListWithExpectedSize(data.size());
+            List<List<MetricDatum>> dataPartitions = Lists.partition(data, 20);
+            List<Future<?>> cloudWatchFutures = new ArrayList<Future<?>>(dataPartitions.size());
 
             for (List<MetricDatum> dataSubset : dataPartitions) {
                 cloudWatchFutures.add(cloudWatch.putMetricDataAsync(new PutMetricDataRequest()
