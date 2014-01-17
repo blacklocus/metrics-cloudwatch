@@ -3,6 +3,7 @@
 
 group = 'com.blacklocus'
 version = '0.3.3-SNAPSHOT'
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Plugins
@@ -103,6 +104,7 @@ artifacts {
 // Publishing
 
 signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
     sign configurations.archives
 }
 
