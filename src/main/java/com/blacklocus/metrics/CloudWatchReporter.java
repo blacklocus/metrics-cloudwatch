@@ -270,8 +270,8 @@ public class CloudWatchReporter extends ScheduledReporter {
         final StatisticSet statisticSet = new StatisticSet()
                 .withSum(scaledSum)
                 .withSampleCount((double) snapshot.size())
-                .withMinimum((double) snapshot.getMin())
-                .withMaximum((double) snapshot.getMax());
+                .withMinimum((double) snapshot.getMin() * rescale)
+                .withMaximum((double) snapshot.getMax() * rescale);
 
         DemuxedKey key = new DemuxedKey(entry.getKey());
         Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
