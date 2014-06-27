@@ -52,7 +52,8 @@ Usage
             CloudWatchReporterTest.class.getSimpleName(),
             new AmazonCloudWatchAsyncClient()
     ).start(1, TimeUnit.MINUTES);
-    // 1 minute lines up with CloudWatch resolution most naturally. Longer intervals could be used, but I'm not sure of the implications.
+    // 1 minute lines up with CloudWatch resolution most naturally. Longer intervals could be used,
+    // but I'm not sure of the implications.
 
 If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
 all your existing metrics code to CloudWatch. There are certain symbols which if part of metric names will result
