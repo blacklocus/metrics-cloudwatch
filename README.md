@@ -42,7 +42,7 @@ Usage
     }
 
     dependencies {
-        compile 'com.blacklocus:metrics-cloudwatch:0.2'
+        compile 'com.blacklocus:metrics-cloudwatch:0.3.3'
     }
 
 ## Code Integration ##
