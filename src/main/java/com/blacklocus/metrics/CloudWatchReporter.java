@@ -119,14 +119,18 @@ public class CloudWatchReporter extends ScheduledReporter {
 
 
     /**
-     * @see #CloudWatchReporter(MetricRegistry, String, AmazonCloudWatchAsync)
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
+     *
+     * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      */
     public CloudWatchReporter(MetricRegistry registry, AmazonCloudWatchAsync cloudWatch) {
         this(registry, null, cloudWatch);
     }
 
     /**
-     * Creates a new {@link ScheduledReporter} instance.
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
      *
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
@@ -135,8 +139,24 @@ public class CloudWatchReporter extends ScheduledReporter {
     public CloudWatchReporter(MetricRegistry registry,
                               String metricNamespace,
                               AmazonCloudWatchAsync cloudWatch) {
+        this(registry, metricNamespace, ALL, cloudWatch);
+    }
 
-        super(registry, "CloudWatchReporter:" + metricNamespace, ALL, TimeUnit.MINUTES, TimeUnit.MINUTES);
+    /**
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
+     *
+     * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
+     * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
+     *                        fall under
+     * @param metricFilter    (optional) see {@link MetricFilter}
+     */
+    public CloudWatchReporter(MetricRegistry registry,
+                              String metricNamespace,
+                              MetricFilter metricFilter,
+                              AmazonCloudWatchAsync cloudWatch) {
+
+        super(registry, "CloudWatchReporter:" + metricNamespace, metricFilter, TimeUnit.MINUTES, TimeUnit.MINUTES);
 
         this.metricNamespace = metricNamespace;
         this.cloudWatch = cloudWatch;
