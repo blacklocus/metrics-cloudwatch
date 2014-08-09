@@ -286,6 +286,13 @@ public class CloudWatchReporter extends ScheduledReporter {
     void reportSampling(Map.Entry<String, ? extends Sampling> entry, String type, double rescale, List<MetricDatum> data) {
         Sampling metric = entry.getValue();
         Snapshot snapshot = metric.getSnapshot();
+
+        // https://github.com/blacklocus/metrics-cloudwatch/issues/4
+        // CloudWatch does not accept sample size of 0
+        if (snapshot.size() == 0) {
+            return;
+        }
+
         double scaledSum = sum(snapshot.getValues()) * rescale;
         final StatisticSet statisticSet = new StatisticSet()
                 .withSum(scaledSum)
@@ -321,12 +328,10 @@ public class CloudWatchReporter extends ScheduledReporter {
         return sum;
     }
 
-
     static final MetricFilter ALL = new MetricFilter() {
         @Override
         public boolean matches(String name, Metric metric) {
             return true;
         }
     };
-
 }

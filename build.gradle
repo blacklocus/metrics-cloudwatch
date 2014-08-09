@@ -64,15 +64,15 @@ repositories {
 }
 
 dependencies {
-    compile 'com.amazonaws:aws-java-sdk:1.6.3'
+    compile 'com.amazonaws:aws-java-sdk:1.8.7'
     compile 'com.codahale.metrics:metrics-core:3.0.1'
 
-    compile 'org.apache.commons:commons-lang3:3.1'
-    compile 'com.google.guava:guava:15.0'
-    compile 'org.slf4j:slf4j-api:1.7.5'
+    compile 'org.apache.commons:commons-lang3:3.3.2'
+    compile 'com.google.guava:guava:17.0'
+    compile 'org.slf4j:slf4j-api:1.7.7'
 
     testCompile 'junit:junit:4.11'
-    testCompile 'org.slf4j:slf4j-simple:1.7.5'
+    testCompile 'org.slf4j:slf4j-simple:1.7.7'
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
