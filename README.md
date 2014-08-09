@@ -74,9 +74,7 @@ in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "b
 
 Additionally, CloudWatch does not aggregate metrics over dimensions on custom metrics
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
-As a possible convenience to ourselves we can just submit these metrics in duplicate, once under the narrowly-scope name
-tags or dimensions, and again under the general scope, and whatever combination thereof concerning multiple scopes. This
-is best understood by examples.
+As a possible convenience to ourselves we can just submit these metrics in duplicate, once for each aggregation scope of interest for any combination of name tokens and dimensions. This is best understood by examples.
 
 ----------------
 
