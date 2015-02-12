@@ -64,15 +64,15 @@ repositories {
 }
 
 dependencies {
-    compile 'com.amazonaws:aws-java-sdk:1.8.7'
-    compile 'com.codahale.metrics:metrics-core:3.0.1'
+    compile 'com.amazonaws:aws-java-sdk-cloudwatch:1.9.18'
+    compile 'io.dropwizard.metrics:metrics-core:3.1.0'
 
     compile 'org.apache.commons:commons-lang3:3.3.2'
-    compile 'com.google.guava:guava:17.0'
-    compile 'org.slf4j:slf4j-api:1.7.7'
+    compile 'com.google.guava:guava:18.0'
+    compile 'org.slf4j:slf4j-api:1.7.10'
 
-    testCompile 'junit:junit:4.11'
-    testCompile 'org.slf4j:slf4j-simple:1.7.7'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.slf4j:slf4j-simple:1.7.10'
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
