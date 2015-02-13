@@ -74,8 +74,8 @@ dependencies {
 
 ```java
 new CloudWatchReporter(
-        metricRegistry,                               // All of the metrics you want reported
-        CloudWatchReporterTest.class.getSimpleName(), // We use the short class name as the CloudWatch namespace
+        metricRegistry,                   // All of the metrics you want reported
+        getClass().getSimpleName(),       // We use the short class name as the CloudWatch namespace
         new AmazonCloudWatchAsyncClient()
 ).start(1, TimeUnit.MINUTES);
 
