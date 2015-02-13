@@ -38,12 +38,9 @@ over time will steadily grow until the Codahale Metrics Reservoir decides to eje
 
 
 
-Usage
------
+### Maven Dependency (Gradle) ###
 
-## Maven Dependency (Gradle) ##
-
-### Current Stable Release ###
+##### Current Stable Release #####
 
 ```gradle
 repositories {
@@ -55,7 +52,9 @@ dependencies {
 }
 ```
 
-### Current Snapshot Release ###
+Other dependency formats on [mvnrepository.com](http://mvnrepository.com/artifact/com.blacklocus/metrics-cloudwatch/0.3.3)
+
+#### Current Snapshot Release ####
 
 ```gradle
 repositories {
@@ -70,7 +69,7 @@ dependencies {
 ```
 
 
-## Code Integration ##
+#### Code Integration ####
 
 ```java
 new CloudWatchReporter(
