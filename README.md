@@ -45,52 +45,58 @@ Usage
 
 ### Current Stable Release ###
 
-    repositories {
-        mavenCentral()
-    }
+```gradle
+repositories {
+    mavenCentral()
+}
 
-    dependencies {
-        compile 'com.blacklocus:metrics-cloudwatch:0.3.3'
-    }
+dependencies {
+    compile 'com.blacklocus:metrics-cloudwatch:0.3.3'
+}
+```
 
 ### Current Snapshot Release ###
 
-    repositories {
-        maven {
-            url 'https://oss.sonatype.org/content/repositories/snapshots/'
-        }
+```gradle
+repositories {
+    maven {
+        url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
+}
 
-    dependencies {
-        compile 'com.blacklocus:metrics-cloudwatch:0.3.4-SNAPSHOT'
-    }
+dependencies {
+    compile 'com.blacklocus:metrics-cloudwatch:0.3.4-SNAPSHOT'
+}
+```
 
 
 ## Code Integration ##
 
-    new CloudWatchReporter(
-            metricRegistry,
-            CloudWatchReporterTest.class.getSimpleName(),
-            new AmazonCloudWatchAsyncClient()
-    ).start(1, TimeUnit.MINUTES);
+```java
+new CloudWatchReporter(
+        metricRegistry,
+        CloudWatchReporterTest.class.getSimpleName(),
+        new AmazonCloudWatchAsyncClient()
+).start(1, TimeUnit.MINUTES);
 
-    // 1 minute lines up with the minimum CloudWatch resolution most naturally, and also lines up with the way a human
-    // would reason about the data (something per minute). Longer intervals could be used,
-    // but consider the implications of what each submitted MetricDatum or StatisticSet then represents, e.g.
-    //
-    // 10 additional ticks in a counter submitted every minute for 5 minutes.
-    //   In CloudWatch UI viewed as AVERAGE over FIVE minutes would show a line at 10.
-    //   Average of 5 MetricDatum each with value 10 = 10.
-    //   That is the average value of each submission over the last 5 minutes. Every datum was 10.
-    // 50 ticks in the same counter submitted every 5 minutes, so the overall rate is the same.
-    //   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) would show a line at 50.
-    //   Average of 1 MetricDatum with value 50 = 50.
-    //   That is the average value of each submission over the last 5 minutes. The one datum was 50.
-    //
-    // The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch is given to aggregate
-    // capture different assumptions about the interval, METRIC per INTERVAL. The submission interval affects
-    // your INTERVAL. Be careful. We find it is least confusing to always send every minute in all systems that use
-    // this library.
+// 1 minute lines up with the minimum CloudWatch resolution most naturally, and also lines up with the way a human
+// would reason about the data (something per minute). Longer intervals could be used,
+// but consider the implications of what each submitted MetricDatum or StatisticSet then represents, e.g.
+//
+// 10 additional ticks in a counter submitted every minute for 5 minutes.
+//   In CloudWatch UI viewed as AVERAGE over FIVE minutes would show a line at 10.
+//   Average of 5 MetricDatum each with value 10 = 10.
+//   That is the average value of each submission over the last 5 minutes. Every datum was 10.
+// 50 ticks in the same counter submitted every 5 minutes, so the overall rate is the same.
+//   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) would show a line at 50.
+//   Average of 1 MetricDatum with value 50 = 50.
+//   That is the average value of each submission over the last 5 minutes. The one datum was 50.
+//
+// The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch is given to aggregate
+// capture different assumptions about the interval, METRIC per INTERVAL. The submission interval affects
+// your INTERVAL. Be careful. We find it is least confusing to always send every minute in all systems that use
+// this library.
+```
 
 If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
 all your existing metrics code to CloudWatch. There are certain symbols which if part of metric names will result
