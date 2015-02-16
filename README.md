@@ -114,48 +114,58 @@ See the test which generates bogus metrics from two simulated machines (threads)
 Metric Naming
 -------------
 
+###### CloudWatch Dimensions support ######
+
 There is implicit support for CloudWatch Dimensions should you choose to use them. Any un-spaced portions of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
 in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "breed": "calico" }.
 
 Additionally, CloudWatch does not aggregate metrics over dimensions on custom metrics
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
-As a possible convenience to ourselves we can just submit these metrics in duplicate, once for each aggregation
-scope of interest for any combination of name tokens and dimensions. This is best understood by examples.
+As a possible convenience to ourselves we can just submit these metrics in duplicate, once for each
+*scope*. This is best understood by example.
 
-----------------
+> Example Scenario: Number of Requests to Service X, is a Counter with name "ServiceX Requests"
 
-> Scenario metric: Number of Requests to Service X, is a Counter with name "ServiceX Requests"
+We have multiple machines in the *Service X* cluster. We want a count over all machine as well as counts
+for individual machines. To enable duplicate submission per each scope (global and per-machine), we could
+name the counter **ServiceX Requests machine={insert machine id here}**.
+At runtime this might turn out to be
 
-We have multiple machines in the *Service X* cluster. We want metrics over all machines as well as per. To enable
-duplicate submission per each scope (global and per-machine), we could name the counter
-**ServiceX Requests machine={insert machine id here}**. At runtime this might turn out to be
-
-#### (CloudWatch Dimensions support) ####
-
-  - ServiceX Requests machine=1.2.3.4
-  - ServiceX Requests machine=7.5.3.1
+```java
+// machine A
+metricRegistry.counter("ServiceX Requests machine=1.2.3.4");
+// machine B
+metricRegistry.counter("ServiceX Requests machine=7.5.3.1");
+```
 
 The = signifies a CloudWatch Dimension. This segment would thus be translated into a dimension with dimension
 name *machine* and dimension value *1.2.3.4* or *7.5.3.1* depending on the machine. Each machine submits one metric to
-CloudWatch. In the CloudWatch UI there would be only two metrics. But wait, now we have to add these together to get
-the global count. For 2 machines that's not so bad, but what if we had more? This is the limitation of the CloudWatch UI
-**and** API -- there is no way to aggregate across custom metrics' dimensions (save doing it yourself). So for our
-own convenience we can construct the metric names at runtime as such.
+CloudWatch. In the CloudWatch UI there would be only two metrics.
 
-  - ServiceX Requests machine=1.2.3.4*
-  - ServiceX Requests machine=7.5.3.1*
+###### Multiple-scope submissions support ######
+
+So continuing the previous scenario, in order to get a total count for all machines, you would have to add
+all such counters together regardless of their *machine* dimension. We just use the CloudWatch console which
+cannot do this for you. So instead of building a whole new UI to do that for us, we have both machines
+also submit the metric without their unique **machine** dimension value, which can be achieved by certain
+symbols in the metric's name.
+
+```java
+// machine A
+metricRegistry.counter("ServiceX Requests machine=1.2.3.4*");
+// machine B
+metricRegistry.counter("ServiceX Requests machine=7.5.3.1*");
+```
 
 The * at the end of a dimension (or plain token) segment signifies that this component is *permutable*. The metric must be
 submitted at least once with this component, and once without. The CloudWatchReporter on each machine will resolve this
-to 2 metrics each.
+to 2 metrics on each machine, where the *global* metric overlaps and individual machines' remain unique.
 
-#### (Permutable name components for multiple scopes duplicate metric submission) ####
-
-  - ServiceX Requests machine=1.2.3.4*
+  - `ServiceX Requests machine=1.2.3.4*` resolves to submissions...
     * ServiceX Requests
     * ServiceX Requests machine=1.2.3.4
-  - ServiceX Requests machine=7.5.3.1*
+  - `ServiceX Requests machine=7.5.3.1*` resolves to submissions...
     * ServiceX Requests
     * ServiceX Requests machine=7.5.3.1
 
@@ -165,9 +175,11 @@ address}, and one *ServiceX Requests* which scopes all machines together.
 Both simple name tokens and dimensions can be permuted (appended with *). Note that this can produce a multiplicative
 number of submissions. e.g. Some machine constructs this individualized metric name
 
-> "ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development"
+```java
+metricRegistry.counter("ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development");
+```
 
-This resolves to all of the following submissions, so be careful about multiplicity.
+This resolves to all of the following CloudWatch metrics.
 
   - ServiceX Requests environment=development
   - ServiceX Requests environment=development machine=1.2.3.4
@@ -177,6 +189,11 @@ This resolves to all of the following submissions, so be careful about multiplic
   - ServiceX Requests group-tag environment=development machine=1.2.3.4
   - ServiceX Requests group-tag environment=development strategy=dolphin
   - ServiceX Requests group-tag environment=development machine=1.2.3.4 strategy=dolphin
+
+In case you forgot, AWS costs money. Metrics and monitoring can easily become the most expensive part
+of your stack. So be wary of metrics explosions.
+
+
 
 
 
