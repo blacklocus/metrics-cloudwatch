@@ -73,8 +73,8 @@ dependencies {
 
 ```java
 new CloudWatchReporter(
-        metricRegistry,                   // All of the metrics you want reported
-        getClass().getSimpleName(),       // We use the short class name as the CloudWatch namespace
+        metricRegistry,             // All of the metrics you want reported
+        getClass().getSimpleName(), // We use the short class name as the CloudWatch namespace
         new AmazonCloudWatchAsyncClient()
 ).start(1, TimeUnit.MINUTES);
 
@@ -91,7 +91,8 @@ new CloudWatchReporter(
 //   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) shows a
 //     line at 50.
 //   Average of 1 MetricDatum with value 50 = 50.
-//   That is the average value of each submission over the last 5 minutes. The one datum was 50.
+//   That is the average value of each submission over the last 5 minutes. The one datum
+//     was 50.
 //
 // The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch
 // is given to aggregate capture different assumptions about the interval, METRIC per
