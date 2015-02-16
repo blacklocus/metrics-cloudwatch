@@ -78,23 +78,26 @@ new CloudWatchReporter(
         new AmazonCloudWatchAsyncClient()
 ).start(1, TimeUnit.MINUTES);
 
-// 1 minute lines up with the minimum CloudWatch resolution most naturally, and also lines up with the way a
-// human would reason about the data (something per minute). Longer intervals could be used, but consider
-// the implications of what each submitted MetricDatum or StatisticSet then represents, e.g.
+// 1 minute lines up with the minimum CloudWatch resolution most naturally, and also lines up
+// with the way a human would reason about the data (something per minute). Longer intervals
+// could be used, but consider the implications of what each submitted MetricDatum or
+// StatisticSet then represents, e.g.
 //
 // 10 additional ticks in a counter submitted every minute for 5 minutes.
 //   In CloudWatch UI viewed as AVERAGE over FIVE minutes would show a line at 10.
 //   Average of 5 MetricDatum each with value 10 = 10.
 //   That is the average value of each submission over the last 5 minutes. Every datum was 10.
 // 50 ticks in the same counter submitted every 5 minutes, so the overall rate is the same.
-//   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) shows a line at 50.
+//   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) shows a
+//     line at 50.
 //   Average of 1 MetricDatum with value 50 = 50.
 //   That is the average value of each submission over the last 5 minutes. The one datum was 50.
 //
-// The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch is given to
-// aggregate capture different assumptions about the interval, METRIC per INTERVAL. The submission interval
-// is your base INTERVAL. Be careful. We find it is least confusing to always send every minute in all
-// systems that use this library, so that we can always say each datapoint represents "1 minute".
+// The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch
+// is given to aggregate capture different assumptions about the interval, METRIC per
+// INTERVAL. The submission interval is your base INTERVAL. Be careful. We find it is least
+// confusing to always send every minute in all systems that use this library, so that we can
+// always say each datapoint represents "1 minute".
 ```
 
 If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
