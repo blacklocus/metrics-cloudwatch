@@ -1,11 +1,12 @@
 CloudWatch integration for codahale metrics
 ===========================================
 
-[![Build Status](https://travis-ci.org/blacklocus/metrics-cloudwatch.svg)](https://travis-ci.org/blacklocus/metrics-cloudwatch)
-
 This is a metrics reporter implementation
 ([codahale/metrics/ScheduledReporter.java](https://github.com/codahale/metrics/blob/master/metrics-core/src/main/java/com/codahale/metrics/ScheduledReporter.java))
 from [codahale metrics](http://metrics.codahale.com/) (v3.x) to [Amazon CloudWatch](http://aws.amazon.com/cloudwatch/).
+
+[![Build Status](https://travis-ci.org/blacklocus/metrics-cloudwatch.svg)](https://travis-ci.org/blacklocus/metrics-cloudwatch)
+
 
 
 ### Metric submission types ###
