@@ -42,10 +42,13 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.Future;
@@ -77,6 +80,15 @@ public class CloudWatchReporter extends ScheduledReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(CloudWatchReporter.class);
 
+    /**
+     * Locale-agnostic decimal separator - used for percentile type-dimension names
+     */
+    private static final String DECIMAL_SEPARATOR = "X";
+
+    /**
+     * Default percentile values to report for {@link Sampling} metrics
+     */
+    private static final double[] DEFAULT_PERCENTILES = new double[]{50, 90, 95, 99};
 
     /**
      * Delimiter of tokens in the metric name. Plain tokens will be retained as the CloudWatch "Metric Name".
@@ -112,20 +124,32 @@ public class CloudWatchReporter extends ScheduledReporter {
      * Carried into to CloudWatch namespace
      */
     private final String metricNamespace;
-
     private final AmazonCloudWatchAsync cloudWatch;
-
+    private final double[] percentiles;
     private final Map<Counting, Long> lastPolledCounts = new HashMap<Counting, Long>();
-
+    private final DecimalFormat percentileFormatter;
 
     /**
      * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
      * {@link #start(long, TimeUnit)}.
      *
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
      */
     public CloudWatchReporter(MetricRegistry registry, AmazonCloudWatchAsync cloudWatch) {
         this(registry, null, cloudWatch);
+    }
+    /**
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
+     *
+     * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
+     * @param percentiles     (optional) percentile values to emit to CloudWatch for Sampling metrics
+     *                        defaults: see {@link #DEFAULT_PERCENTILES}
+     */
+    public CloudWatchReporter(MetricRegistry registry, AmazonCloudWatchAsync cloudWatch, double[] percentiles) {
+        this(registry, null, cloudWatch, percentiles);
     }
 
     /**
@@ -135,11 +159,29 @@ public class CloudWatchReporter extends ScheduledReporter {
      * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
      * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
      *                        fall under
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
      */
     public CloudWatchReporter(MetricRegistry registry,
                               String metricNamespace,
                               AmazonCloudWatchAsync cloudWatch) {
         this(registry, metricNamespace, ALL, cloudWatch);
+    }
+    /**
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
+     *
+     * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
+     * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
+     *                        fall under
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
+     * @param percentiles     (optional) percentile values to emit to CloudWatch for Sampling metrics
+     *                        defaults: see {@link #DEFAULT_PERCENTILES}
+     */
+    public CloudWatchReporter(MetricRegistry registry,
+                              String metricNamespace,
+                              AmazonCloudWatchAsync cloudWatch,
+                              double[] percentiles) {
+        this(registry, metricNamespace, ALL, cloudWatch, percentiles);
     }
 
     /**
@@ -150,18 +192,44 @@ public class CloudWatchReporter extends ScheduledReporter {
      * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
      *                        fall under
      * @param metricFilter    (optional) see {@link MetricFilter}
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
      */
     public CloudWatchReporter(MetricRegistry registry,
                               String metricNamespace,
                               MetricFilter metricFilter,
                               AmazonCloudWatchAsync cloudWatch) {
 
+        this(registry, metricNamespace, metricFilter, cloudWatch, null);
+    }
+
+    /**
+     * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
+     * {@link #start(long, TimeUnit)}.
+     *
+     * @param registry        the {@link MetricRegistry} containing the metrics this reporter will report
+     * @param metricNamespace (optional) CloudWatch metric namespace that all metrics reported by this reporter will
+     *                        fall under
+     * @param metricFilter    (optional) see {@link MetricFilter}
+     * @param cloudWatch      the CloudWatch client to use for submitting metrics
+     * @param percentiles     (optional) percentile values to emit to CloudWatch for Sampling metrics
+     *                        defaults: see {@link #DEFAULT_PERCENTILES}
+     */
+    public CloudWatchReporter(MetricRegistry registry,
+                              String metricNamespace,
+                              MetricFilter metricFilter,
+                              AmazonCloudWatchAsync cloudWatch,
+                              double[] percentiles) {
+
         super(registry, "CloudWatchReporter:" + metricNamespace, metricFilter, TimeUnit.MINUTES, TimeUnit.MINUTES);
 
         this.metricNamespace = metricNamespace;
         this.cloudWatch = cloudWatch;
-    }
+        this.percentiles = (null == percentiles || percentiles.length == 0) ? percentiles : DEFAULT_PERCENTILES;
 
+        final DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.getDefault());
+        symbols.setDecimalSeparator(DECIMAL_SEPARATOR.charAt(0));
+        this.percentileFormatter = new DecimalFormat("00.##########", symbols);
+    }
 
     @Override
     public void report(SortedMap<String, Gauge> gauges,
@@ -294,14 +362,36 @@ public class CloudWatchReporter extends ScheduledReporter {
                 .withMaximum((double) snapshot.getMax() * rescale);
 
         DemuxedKey key = new DemuxedKey(entry.getKey());
+
         Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
             @Override
             public MetricDatum apply(MetricDatum datum) {
                 return datum.withStatisticValues(statisticSet);
             }
         }));
+
+        //Add percentiles as extended types
+        for (double percentile : percentiles) {
+            final StatisticSet percentileSet = new StatisticSet()
+                    .withSum(snapshot.getValue(percentile / 100) * rescale)
+                    .withSampleCount((double) snapshot.size())
+                    .withMinimum((double) snapshot.getMin() * rescale)
+                    .withMaximum((double) snapshot.getMax() * rescale);
+
+            Iterables.addAll(data, key.newDatums(buildPercentileTypeValue(type, percentile), new Function<MetricDatum, MetricDatum>() {
+                @Override
+                public MetricDatum apply(MetricDatum datum) {
+                    return datum.withStatisticValues(percentileSet);
+                }
+            }));
+        }
     }
 
+    private String buildPercentileTypeValue(String baseType, double percentile) {
+        final String percentileSegment = percentileFormatter.format(percentile).replaceAll(DECIMAL_SEPARATOR, "");
+
+        return baseType + ".p" + percentileSegment;
+    }
 
     private long diffLast(Counting metric) {
         long count = metric.getCount();
