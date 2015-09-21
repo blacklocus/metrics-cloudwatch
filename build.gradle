@@ -169,4 +169,3 @@ idea {
 task createWrapper(type: Wrapper) {
     gradleVersion = '1.8'
 }
-
