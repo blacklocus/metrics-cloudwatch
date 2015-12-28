@@ -38,6 +38,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,6 +118,11 @@ public class CloudWatchReporter extends ScheduledReporter {
 
     private final Map<Counting, Long> lastPolledCounts = new HashMap<Counting, Long>();
 
+    /**
+     * Global reporter-wide dimensions automatically appended to all metrics.
+     */
+    private String dimensions;
+
 
     /**
      * Creates a new {@link ScheduledReporter} instance. The reporter does not report metrics until
@@ -162,6 +168,16 @@ public class CloudWatchReporter extends ScheduledReporter {
         this.cloudWatch = cloudWatch;
     }
 
+    /**
+     * Sets global reporter-wide dimensions and returns itself.
+     *
+     * @param dimensions the string representing global dimensions
+     * @return this instance
+     */
+    public CloudWatchReporter withDimensions(String dimensions) {
+        this.dimensions = dimensions;
+        return this;
+    }
 
     @Override
     public void report(SortedMap<String, Gauge> gauges,
@@ -252,7 +268,7 @@ public class CloudWatchReporter extends ScheduledReporter {
         if (NumberUtils.isNumber(valueStr)) {
             final Number value = NumberUtils.createNumber(valueStr);
 
-            DemuxedKey key = new DemuxedKey(gaugeEntry.getKey());
+            DemuxedKey key = new DemuxedKey(appendGlobalDimensions(gaugeEntry.getKey()));
             Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
                 @Override
                 public MetricDatum apply(MetricDatum datum) {
@@ -271,7 +287,7 @@ public class CloudWatchReporter extends ScheduledReporter {
             return;
         }
 
-        DemuxedKey key = new DemuxedKey(entry.getKey());
+        DemuxedKey key = new DemuxedKey(appendGlobalDimensions(entry.getKey()));
         Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
             @Override
             public MetricDatum apply(MetricDatum datum) {
@@ -293,7 +309,7 @@ public class CloudWatchReporter extends ScheduledReporter {
                 .withMinimum((double) snapshot.getMin() * rescale)
                 .withMaximum((double) snapshot.getMax() * rescale);
 
-        DemuxedKey key = new DemuxedKey(entry.getKey());
+        DemuxedKey key = new DemuxedKey(appendGlobalDimensions(entry.getKey()));
         Iterables.addAll(data, key.newDatums(type, new Function<MetricDatum, MetricDatum>() {
             @Override
             public MetricDatum apply(MetricDatum datum) {
@@ -321,6 +337,14 @@ public class CloudWatchReporter extends ScheduledReporter {
         return sum;
     }
 
+
+    private String appendGlobalDimensions(String metric) {
+        if (StringUtils.isBlank(StringUtils.trim(dimensions))) {
+            return metric;
+        } else {
+            return metric + NAME_TOKEN_DELIMITER + dimensions;
+        }
+    }
 
     static final MetricFilter ALL = new MetricFilter() {
         @Override

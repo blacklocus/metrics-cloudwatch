@@ -48,7 +48,9 @@ public class CloudWatchReporterTest {
                         metricRegistry,
                         CloudWatchReporterTest.class.getSimpleName(),
                         new AmazonCloudWatchAsyncClient()
-                ).start(1, TimeUnit.MINUTES);
+                )
+                        .withDimensions("unit=test group=first")
+                        .start(1, TimeUnit.MINUTES);
 
                 metricRegistry.register("TheGauge", new Gauge<Long>() {
                     @Override
@@ -87,7 +89,9 @@ public class CloudWatchReporterTest {
                         metricRegistry,
                         CloudWatchReporterTest.class.getSimpleName(),
                         new AmazonCloudWatchAsyncClient()
-                ).start(1, TimeUnit.MINUTES);
+                )
+                        .withDimensions("unit=test group=second")
+                        .start(1, TimeUnit.MINUTES);
 
                 metricRegistry.register("TheGauge", new Gauge<Long>() {
                     @Override
