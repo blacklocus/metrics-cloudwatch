@@ -9,36 +9,6 @@ from [codahale metrics](http://metrics.codahale.com/) (v3.x) to [Amazon CloudWat
 
 
 
-### Metric submission types ###
-
-These translations have been made to CloudWatch. Generally only the atomic data (in AWS SDK terms, one of
-[MetricDatum](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) or
-[StatisticSet](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html))
-is submitted so that it can be predictably aggregated via the CloudWatch API or UI. Codahale Metrics instances are NOT
-reset on
-each CloudWatch report so they retain their original, cumulative functionality. The following`type` is submitted with
-each metric as a CloudWatch Dimension.
-
-| Metric    | Type           | sent statistic meaning per interval                                                     |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
-| Gauge     | gauge          | current value (if numeric)                                                              |
-| Counter   | counterSum     | change in sum since last report                                                         |
-| Meter     | meterSum       | change in sum since last report                                                         |
-| Histogram | histogramCount | change in samples since last report                                                     |
-|           | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
-| Timer     | timerCount     | change in samples since last report                                                     |
-|           | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
-
-`histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history
-mechanics in each of them. Instead all available values are summed and counted to be sent as the simplified CloudWatch
-StatisticSet. In this way, multiple submissions at the same time aggregate predictably with the standard CloudWatch UI
-functions. As a consequence, any new process using these abstractions when viewed in CloudWatch as *sums* or *samples*
-over time will steadily grow until the Codahale Metrics Reservoir decides to eject values: see
-[Codahale Metrics: Histograms](http://metrics.codahale.com/manual/core/#histograms). Viewing these metrics as
-*averages* in CloudWatch is usually the most sensible indication of represented performance.
-
-
-
 ### Maven Dependency (Gradle) ###
 
 ##### Current Stable Release #####
@@ -109,6 +79,38 @@ to be used with the CloudWatchReporter.
 
 See the test which generates bogus metrics from two simulated machines (threads):
 [CloudWatchReporterTest.java](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/test/java/com/blacklocus/metrics/CloudWatchReporterTest.java)
+
+
+### Metric submission types ###
+
+These translations from codahale metric classes have been made to CloudWatch. Generally only the atomic data (in AWS SDK terms, one of
+[MetricDatum](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) or
+[StatisticSet](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html))
+is submitted so that it can be predictably aggregated via the CloudWatch API or UI. Codahale Metrics instances are NOT
+reset on
+each CloudWatch report so they retain their original, cumulative functionality. The following`type` is submitted with
+each metric as a CloudWatch Dimension.
+
+| Metric    | Type           | sent statistic meaning per interval                                                     |
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
+| Gauge     | gauge          | current value (if numeric)                                                              |
+| Counter   | counterSum     | change in sum since last report                                                         |
+| Meter     | meterSum       | change in sum since last report                                                         |
+| Histogram | histogramCount | change in samples since last report                                                     |
+|           | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
+| Timer     | timerCount     | change in samples since last report                                                     |
+|           | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
+
+`histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history
+mechanics in each of them. Instead all available values are summed and counted to be sent as the simplified CloudWatch
+StatisticSet. In this way, multiple submissions at the same time aggregate predictably with the standard CloudWatch UI
+functions. As a consequence, any new process using these abstractions when viewed in CloudWatch as *sums* or *samples*
+over time will steadily grow until the Codahale Metrics Reservoir decides to eject values: see
+[Codahale Metrics: Histograms](http://metrics.codahale.com/manual/core/#histograms). Viewing/aggregating these metrics as
+*averages* is usually the most explainable way to use that data.
+
+
+
 
 
 
