@@ -49,7 +49,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.blacklocus:metrics-cloudwatch:0.3.4'
+    compile 'com.blacklocus:metrics-cloudwatch:0.3.5'
 }
 ```
 
