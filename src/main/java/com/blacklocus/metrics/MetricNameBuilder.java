@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,6 +32,9 @@ import static com.blacklocus.metrics.Constants.VALID_NAME_TOKEN_RGX;
 
 /**
  * A builder for the metrics name syntax defined by this module. Useful when programmatically constructing metric names.
+ * <p>
+ * Please refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for the
+ * latest usage documentation.
  *
  * @author Jason Dunkelberger (dirkraft)
  */

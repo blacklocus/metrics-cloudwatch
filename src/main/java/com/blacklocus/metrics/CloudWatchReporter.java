@@ -54,23 +54,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * <h2>Included dimension</h2>
+ * New users should obtain a reporter via a {@link CloudWatchReporterBuilder}! The reporter constructors remain
+ * for legacy users of this package.
  * <p>
- * One dimension is always included with the dimension name defined in {@link Constants#DEF_DIM_NAME_TYPE}. This corresponds
- * to a type of metric submissions to CloudWatch.
- * <p>
- * Refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for documentation on
- * metric submission types.
- *
- * <h2>Custom dimensions</h2>
- * <p>
- * CloudWatch does not aggregate over dimensionChain on custom metrics, see
- * http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension
- * To achieve similar convenience, we can submit metrics in duplicate, once for each tuple of attributes against which
- * we would aggregate metrics.
- * <p>
- * Refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for documentation on
- * the name-encoded syntax of dimensions and permutable components.
+ * Please refer to [README.md](https://github.com/blacklocus/metrics-cloudwatch/blob/master/README.md) for the
+ * latest usage documentation.
  *
  * @author Jason Dunkelberger (dirkraft)
  */
