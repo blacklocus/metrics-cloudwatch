@@ -7,6 +7,7 @@ from [codahale metrics](http://metrics.codahale.com/) (v3.x) to [Amazon CloudWat
 
 [![Build Status](https://travis-ci.org/blacklocus/metrics-cloudwatch.svg)](https://travis-ci.org/blacklocus/metrics-cloudwatch)
 
+### Table of Contents ###
 
   - [dependency](#maven-dependency-gradle)
   - [usage](#usage)
