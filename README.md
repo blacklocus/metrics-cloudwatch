@@ -40,7 +40,7 @@ dependencies {
 ```
 
 
-#### Code ####
+### Usage ###
 
 Here is a bare minimum example, and how we generally use the CloudWatchReporter. We create a class to represent a namespace
 of metrics and provide methods enumerating the metrics recorded. The reporter interval is at 1 minute which will report
@@ -48,12 +48,15 @@ new data every minute for the last minute to CloudWatch. 1 minute is the minimum
 to save money on API requests, you could go every 5 minutes or longer, keeping in mind that each data point to CloudWatch
 then represents 5 minutes, and you shouldn't view periods smaller than that in the CloudWatch console.
 
+<strong>Please prefer the Builder.</strong> Legacy users can continue to use the CloudWatchReporter constructors directly for backwards-compatibility with older versions.
+
 ```java
 class ExampleMetrics {
 
     private final MetricRegistry registry = new MetricRegistry();
 
     public ExampleMetrics() {
+        // The builder has many options, but namespace and registry are the minimum.
         new CloudWatchReporterBuilder()
                 .withNamespace(ExampleMetrics.class.getSimpleName())
                 .withRegistry(registry)
@@ -126,28 +129,28 @@ If you plan on seriously using any of this at scale, you should go read the code
 exactly what the code hale metrics classes capture, and how that information gets translated into CloudWatch.
 
 
+#### Special characters in metric names ####
 
-
-Metric Naming
--------------
-
-###### CloudWatch Dimensions support ######
-
-There is implicit support for CloudWatch Dimensions should you choose to use them. Any un-spaced portions of the metric
+**Dimension support name=value **: Any un-spaced tokens of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
 in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "breed": "calico" }.
 
-Additionally, CloudWatch does not aggregate metrics over dimensions on custom metrics
+**Duplicate submission support token* **: Neither the CloudWatch service nor web console will aggregate metrics *across dimensions on custom metrics*
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
-As a possible convenience to ourselves we can just submit these metrics in duplicate, once for each
-*scope*. This is best understood by example.
+For convenience, we can just submit these metrics in duplicate, once with the dimension and once without (the aggregate over all values of this dimension).
 
-> Example Scenario: Number of Requests to Service X, is a Counter with name "ServiceX Requests"
+What follows is a detailed example of how you might name your metrics to submit them to CloudWatch in number of specific ways.
 
-We have multiple machines in the *Service X* cluster. We want a count over all machine as well as counts
-for individual machines. To enable duplicate submission per each scope (global and per-machine), we could
+
+##### Example metric naming #####
+
+We have multiple machines in the *Service X* cluster. We want a count over all machines as well as counts
+for individual machines. To submit to each machine-specific and machine-ignornat, we 
 name the counter **ServiceX Requests machine={insert machine id here}**.
-At runtime this might turn out to be
+
+> Measuring: Number of Requests to Service X, is a code hale Counter with metric name "ServiceX Requests"
+
+In this example, this turns out to be 
 
 ```java
 // machine A
@@ -159,6 +162,12 @@ metricRegistry.counter("ServiceX Requests machine=7.5.3.1");
 The = signifies a CloudWatch Dimension. This segment would thus be translated into a dimension with dimension
 name *machine* and dimension value *1.2.3.4* or *7.5.3.1* depending on the machine. Each machine submits one metric to
 CloudWatch. In the CloudWatch UI there would be only two metrics.
+
+To get the aggregate of this metric over all machines, we would add all of the metrics regardless of machine together.
+Unfortunately, we use the CloudWatch web console, which will not aggregate across dimensions. So instead we submit the metric twice from each machine: once machine-specific with the machine dimension, and once without the machine dimension.
+The metric without the machine dimension represents performance across all machines.
+
+The CloudWatchReporter provided by this project can do that by adding the `*` 
 
 ###### Multiple-scope submissions support ######
 
