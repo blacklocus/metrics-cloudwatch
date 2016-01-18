@@ -103,39 +103,39 @@ In the test code, there is a test app that generates bogus metrics from two simu
 ### Metric types ###
 
 CloudWatch speaks in terms of 
-[MetricDatum](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) and
-[StatisticSet](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html)). Code hale's metric classes are thus translated into these constructs in the most direct way possible. The metric classes are NOT reset, so that they retain their original, cumulative functionality.
+[MetricDatum (AWS docs)](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) and
+[StatisticSet (AWS docs)](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html). Code Hale's metric classes are thus translated into these constructs in the most direct way possible. The metric classes are NOT reset, so that they retain their original, cumulative functionality.
 
-The CloudWatchReporter adds the `metricType` dimension as follows, 
+The CloudWatchReporter adds the `metricType` dimension as follows, and submits 
 
 | Class     | Dimension Value | sent statistic meaning per interval                                                     |
 | --------- | --------------- | --------------------------------------------------------------------------------------- |
-| Gauge     | gauge           | If numeric, .getValue(). Non-numeric ignored.                                           |
-| Counter   | counterCount    | Diff in .getCount() since last report.                                                  |
-| Meter     | meterCount      | Diff in .getCount() since last report.                                                  |
-| Histogram | histoSamples    | Diff in .getCount() (which for Histogram is number of samples) since last report.       |
+| Gauge     | gauge           | If numeric, .getValue() as MetricDatum. Non-numeric ignored.                            |
+| Counter   | counterCount    | Diff in .getCount() since last report as MetricDatum.                                   |
+| Meter     | meterCount      | Diff in .getCount() since last report as MetricDatum.                                   |
+| Histogram | histoSamples    | Diff in .getCount() (Histogram returns samples) since last report as MetricDatum.       |
 |           | histoStats†     | StatisticSet based on .getSnapshot().                                                   |
-| Timer     | timerSamples    | Diff in .getCount() (which for Timer is number of samples) since last report.           |
+| Timer     | timerSamples    | Diff in .getCount() (Timer returns samples) since last report as MetricDatum.           |
 |           | timerStats†     | StatisticSet based on .getSnapshot(). sum / 1,000,000 (nanos -> millis)                 |
 
 The dimension name and values for each metric type are configurable in the CloudWatchReporterBuilder.
 
-† - Per `histoStats` and `timerStats`, you have to consider what the Snapshot actually is to understand how they are
+† - For `histoStats` and `timerStats`, you have to consider what the Snapshot actually is to understand how they are
 translated to StatisticSets. In a nutshell there is a sliding window of history. At each reporter interval all
 available values are read to compute the parts of a CloudWatch StatisticSet: the min, max, sum, average, and samples
 (number of data points).
 
-If you plan on seriously using any of this at scale, you should go read the code to understand
-exactly what the code hale metrics classes capture, and how that information gets translated into CloudWatch.
+If you plan on seriously using any of this at scale, you should apportion time to go read the code (CloudWatchReporter and Coda Hale metrics classes) to understand
+exactly what the metrics classes capture, and how that information gets translated into CloudWatch.
 
 
 #### Special characters in metric names ####
 
-__Dimension support name=value__: Any un-spaced tokens of the metric
+Dimension support __name=value__: Any un-spaced tokens of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
 in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "breed": "calico" }.
 
-__Duplicate submission support token*__: Neither the CloudWatch service nor web console will aggregate metrics *across dimensions on custom metrics*
+Duplicate submission support __token*__: Neither the CloudWatch service nor web console will aggregate metrics *across dimensions on custom metrics*
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
 For convenience, we can just submit these metrics in duplicate, once with the dimension and once without (the aggregate over all values of this dimension).
 
@@ -178,10 +178,10 @@ So all of the metric submissions look like this across all machines.
     * `ServiceX Requests` and 
     * `ServiceX Requests machine=1.2.3.4`
   - machine 7.5.3.1 submits to CloudWatch two metrics named
-    * ServiceX Requests
-    * ServiceX Requests machine=7.5.3.1
+    * `ServiceX Requests` and
+    * `ServiceX Requests machine=7.5.3.1`
 
-Any *name token* can be permuted by appending with a `*`, not just dimensions. **But be warned**, permutations
+Any *name token* can be permuted by appending it with `*`, not just dimensions. **But be warned**, permutations
 can grow exponentially such as in this example.
 
 ```java
