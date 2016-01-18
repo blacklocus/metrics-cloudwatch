@@ -2,7 +2,7 @@
 // Identifiers
 
 group = 'com.blacklocus'
-version = '0.3.6-SNAPSHOT'
+version = '0.4.0-SNAPSHOT'
 ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +47,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.5.0'
+        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.10.0'
     }
 }
 apply plugin: 'license'
@@ -64,15 +64,15 @@ repositories {
 }
 
 dependencies {
-    compile 'com.amazonaws:aws-java-sdk-cloudwatch:1.9.18'
-    compile 'io.dropwizard.metrics:metrics-core:3.1.0'
+    compile 'com.amazonaws:aws-java-sdk-cloudwatch:1.10.47'
+    compile 'io.dropwizard.metrics:metrics-core:3.1.2'
 
-    compile 'org.apache.commons:commons-lang3:3.3.2'
-    compile 'com.google.guava:guava:18.0'
-    compile 'org.slf4j:slf4j-api:1.7.10'
+    compile 'org.apache.commons:commons-lang3:3.4'
+    compile 'com.google.guava:guava:19.0'
+    compile 'org.slf4j:slf4j-api:1.7.13'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'org.slf4j:slf4j-simple:1.7.10'
+    testCompile 'org.slf4j:slf4j-simple:1.7.13'
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +80,10 @@ dependencies {
 
 jar {
     manifest = defaultManifest()
+}
+
+javadoc {
+    failOnError = false
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {

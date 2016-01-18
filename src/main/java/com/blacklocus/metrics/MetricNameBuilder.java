@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,12 +23,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.blacklocus.metrics.CloudWatchReporter.NAME_DIMENSION_SEPARATOR;
-import static com.blacklocus.metrics.CloudWatchReporter.NAME_PERMUTE_MARKER;
-import static com.blacklocus.metrics.CloudWatchReporter.NAME_TOKEN_DELIMITER;
-import static com.blacklocus.metrics.CloudWatchReporter.NAME_TOKEN_DELIMITER_RGX;
-import static com.blacklocus.metrics.CloudWatchReporter.VALID_DIMENSION_PART_RGX;
-import static com.blacklocus.metrics.CloudWatchReporter.VALID_NAME_TOKEN_RGX;
+import static com.blacklocus.metrics.Constants.NAME_DIMENSION_SEPARATOR;
+import static com.blacklocus.metrics.Constants.NAME_PERMUTE_MARKER;
+import static com.blacklocus.metrics.Constants.NAME_TOKEN_DELIMITER;
+import static com.blacklocus.metrics.Constants.NAME_TOKEN_DELIMITER_RGX;
+import static com.blacklocus.metrics.Constants.VALID_DIMENSION_PART_RGX;
+import static com.blacklocus.metrics.Constants.VALID_NAME_TOKEN_RGX;
 
 /**
  * A builder for the metrics name syntax defined by this module. Useful when programmatically constructing metric names.

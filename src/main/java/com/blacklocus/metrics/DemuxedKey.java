@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 BlackLocus
- *
+ * <p/>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,16 +28,18 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.blacklocus.metrics.Constants.*;
+
 /**
-* @author Jason Dunkelberger (dirkraft)
-*/
+ * @author Jason Dunkelberger (dirkraft)
+ */
 class DemuxedKey {
 
     final PermutableChain<String> nameChain;
     final PermutableChain<Dimension> dimensionChain;
 
     DemuxedKey(String s) {
-        String[] segments = s.split(CloudWatchReporter.NAME_TOKEN_DELIMITER_RGX);
+        String[] segments = s.split(NAME_TOKEN_DELIMITER_RGX);
 
         PermutableChain<String> names = null;
         PermutableChain<Dimension> dimensions = null;
@@ -46,18 +48,18 @@ class DemuxedKey {
         for (int i = segments.length - 1; i >= 0; i--) {
             String segment = segments[i];
 
-            boolean permutable = segment.endsWith(CloudWatchReporter.NAME_PERMUTE_MARKER);
+            boolean permutable = segment.endsWith(NAME_PERMUTE_MARKER);
             if (permutable) {
                 segment = segment.substring(0, segment.length() - 1);
             }
 
-            if (segment.contains(CloudWatchReporter.NAME_DIMENSION_SEPARATOR)) {
-                String[] dimensionParts = segment.split(CloudWatchReporter.NAME_DIMENSION_SEPARATOR, 2);
+            if (segment.contains(NAME_DIMENSION_SEPARATOR)) {
+                String[] dimensionParts = segment.split(NAME_DIMENSION_SEPARATOR, 2);
                 Dimension dimension = new Dimension().withName(dimensionParts[0]).withValue(dimensionParts[1]);
                 dimensions = new PermutableChain<Dimension>(dimension, permutable, dimensions);
 
             } else {
-                assert !segment.contains(CloudWatchReporter.NAME_PERMUTE_MARKER);
+                assert !segment.contains(NAME_PERMUTE_MARKER);
                 names = new PermutableChain<String>(segment, permutable, names);
             }
         }
@@ -66,11 +68,17 @@ class DemuxedKey {
         this.dimensionChain = dimensions;
     }
 
-    Iterable<MetricDatum> newDatums(String type, Function<MetricDatum, MetricDatum> datumSpecification) {
+    /**
+     * @param typeName           dimension name to use for the metric type dimension
+     * @param typeValue          dimension value to use for the metric type dimension
+     * @param datumSpecification writes the metric's data into to the prepared MetricDatum
+     * @return the generated <i>datums</i> which should be ready for submission to CloudWath
+     */
+    Iterable<MetricDatum> newDatums(String typeName, String typeValue, Function<MetricDatum, MetricDatum> datumSpecification) {
 
         // All dimension sets include the type dimension.
         PermutableChain<Dimension> withDimensionChain = new PermutableChain<Dimension>(
-                new Dimension().withName(CloudWatchReporter.METRIC_TYPE_DIMENSION).withValue(type),
+                new Dimension().withName(typeName).withValue(typeValue),
                 false,
                 dimensionChain
         );
