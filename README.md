@@ -109,9 +109,9 @@ In the test code, there is a test app that generates bogus metrics from two simu
 
 ### Metric types ###
 
-CloudWatch speaks in terms of 
+The CloudWatch API speaks in terms of 
 [MetricDatum (AWS docs)](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) and
-[StatisticSet (AWS docs)](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html). Code Hale's metric classes are thus translated into these constructs in the most direct way possible. The metric classes are NOT reset, so that they retain their original, cumulative functionality.
+[StatisticSet (AWS docs)](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html). Code Hale's metric classes are thus translated into these constructs in the most direct way possible. The metric classes are NOT reset, so that they retain their original, cumulative functionality. If you haven't you should also read all of the CloudWatch overview: [CloudWatch Concepts (AWS docs)](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html). It will significantly ease understanding translations from the metrics classes to CloudWatch. 
 
 The CloudWatchReporter adds the `metricType` dimension as follows, and submits 
 
