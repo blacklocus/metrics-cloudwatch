@@ -42,34 +42,52 @@ dependencies {
 
 #### Code Integration ####
 
-```java
-new CloudWatchReporter(
-        metricRegistry,             // All of the metrics you want reported
-        getClass().getSimpleName(), // We use the short class name as the CloudWatch namespace
-        new AmazonCloudWatchAsyncClient()
-).start(1, TimeUnit.MINUTES);
+Here is a bare minimum example, and how we generally use the CloudWatchReporter. We create a class to represent a namespace
+of metrics and provide methods enumerating the metrics recorded. The reporter interval is at 1 minute which will report
+new data every minute for the last minute to CloudWatch. 1 minute is the minimum resolution of CloudWatch. If you wanted
+to save money on API requests, you could go every 5 minutes or longer, keeping in mind that each data point to CloudWatch
+then represents 5 minutes, and you shouldn't view periods smaller than that in the CloudWatch console.
 
-// 1 minute lines up with the minimum CloudWatch resolution most naturally, and also lines up
-// with the way a human would reason about the data (something per minute). Longer intervals
-// could be used, but consider the implications of what each submitted MetricDatum or
-// StatisticSet then represents, e.g.
-//
-// 10 additional ticks in a counter submitted every minute for 5 minutes.
-//   In CloudWatch UI viewed as AVERAGE over FIVE minutes would show a line at 10.
-//   Average of 5 MetricDatum each with value 10 = 10.
-//   That is the average value of each submission over the last 5 minutes. Every datum was 10.
-// 50 ticks in the same counter submitted every 5 minutes, so the overall rate is the same.
-//   In CloudWatch UI viewed as AVERAGE over FIVE minutes (same aggregation as before) shows a
-//     line at 50.
-//   Average of 1 MetricDatum with value 50 = 50.
-//   That is the average value of each submission over the last 5 minutes. The one datum
-//     was 50.
-//
-// The same overall rate is being counted in both cases, but the MetricDatum that CloudWatch
-// is given to aggregate capture different assumptions about the interval, METRIC per
-// INTERVAL. The submission interval is your base INTERVAL. Be careful. We find it is least
-// confusing to always send every minute in all systems that use this library, so that we can
-// always say each datapoint represents "1 minute".
+```java
+class ExampleMetrics {
+
+    private final MetricRegistry registry = new MetricRegistry();
+
+    public ExampleMetrics() {
+        new CloudWatchReporterBuilder()
+                .withNamespace(ExampleMetrics.class.getSimpleName())
+                .withRegistry(registry)
+                .build()
+                .start(1, TimeUnit.MINUTES);
+    }
+
+    public void sentThatThing() {
+        registry.counter("sentThatThing").inc();
+    }
+
+    public void gotABatchOfThoseThingsYaSentMe(int count) {
+        registry.counter("gotThatThing").inc(count);
+    }
+}
+
+public class ExampleApp {
+
+    private final ExampleMetrics exampleMetrics;
+
+    public ExampleApp(ExampleMetrics exampleMetrics) {
+        this.exampleMetrics = exampleMetrics;
+    }
+
+    public void sendAThing() {
+        // ... somewhere in the code not so far away ...
+        exampleMetrics.sentThatThing();
+    }
+    
+    public void receiveSomeThings(List<Object> thoseThings) {
+        exampleMetrics.gotABatchOfThoseThingsYaSentMe(thoseThings.size());
+        // ... and so on ...
+    }
+}
 ```
 
 If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
