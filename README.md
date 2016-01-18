@@ -19,11 +19,11 @@ repositories {
 }
 
 dependencies {
-    compile 'com.blacklocus:metrics-cloudwatch:0.3.5'
+    compile 'com.blacklocus:metrics-cloudwatch:0.4.0'
 }
 ```
 
-Other dependency formats on [mvnrepository.com](http://mvnrepository.com/artifact/com.blacklocus/metrics-cloudwatch/0.3.5)
+Other dependency formats on [mvnrepository.com](http://mvnrepository.com/artifact/com.blacklocus/metrics-cloudwatch/0.4.0)
 
 #### Current Snapshot Release ####
 
@@ -35,7 +35,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.blacklocus:metrics-cloudwatch:0.3.6-SNAPSHOT'
+    compile 'com.blacklocus:metrics-cloudwatch:0.4.1-SNAPSHOT'
 }
 ```
 
