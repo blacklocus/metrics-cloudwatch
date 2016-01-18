@@ -146,7 +146,7 @@ Duplicate submission support __token*__: Neither the CloudWatch service nor web 
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
 For convenience, we can just submit these metrics in duplicate, once with the dimension and once without (the aggregate over all values of this dimension).
 
-What follows is a detailed example of how you might name your metrics to submit them to CloudWatch in number of specific ways.
+The following example shows how you might name your metrics to submit them to CloudWatch to accomplish this.
 
 
 ##### Example metric naming #####
@@ -154,8 +154,6 @@ What follows is a detailed example of how you might name your metrics to submit 
 We have multiple machines in the *Service X* cluster. We want a count over all machines as well as counts
 for individual machines. To submit to each machine-specific and machine-ignornat, we 
 name the counter **ServiceX Requests machine={insert machine id here}**.
-
-> Measuring: Number of Requests to Service X, is a code hale Counter with metric name "ServiceX Requests"
 
 In this example, this turns out to be 
 
@@ -192,7 +190,7 @@ Any *name token* can be permuted by appending it with `*`, not just dimensions. 
 can grow exponentially such as in this example.
 
 ```java
-registry.counter("ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development");
+metricRegistry.counter("ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development");
 ```
 
 This resolves to all of the following CloudWatch metrics.
