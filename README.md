@@ -40,7 +40,7 @@ dependencies {
 ```
 
 
-#### Code Integration ####
+#### Code ####
 
 Here is a bare minimum example, and how we generally use the CloudWatchReporter. We create a class to represent a namespace
 of metrics and provide methods enumerating the metrics recorded. The reporter interval is at 1 minute which will report
@@ -90,44 +90,40 @@ public class ExampleApp {
 }
 ```
 
-If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporter to start submitting
-all your existing metrics code to CloudWatch. There are certain symbols which if part of metric names will result
-in RuntimeExceptions in the CloudWatchReporter thread. These metrics should be renamed to avoid these symbols
-to be used with the CloudWatchReporter.
+If you already have a Codahale MetricsRegistry, you only need to give it to a CloudWatchReporterBuilder and build a reporter to start submitting
+all your existing metrics code to CloudWatch. Note that some symbols in the metric names have special meaning explained below.
 
-See the test which generates bogus metrics from two simulated machines (threads):
+In the test code, there is a test app that generates bogus metrics from two simulated machines (threads):
 [CloudWatchReporterTest.java](https://github.com/blacklocus/metrics-cloudwatch/blob/master/src/test/java/com/blacklocus/metrics/CloudWatchReporterTest.java)
 
 
-### Metric submission types ###
+### Metric types ###
 
-These translations from codahale metric classes have been made to CloudWatch. Generally only the atomic data (in AWS SDK terms, one of
-[MetricDatum](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) or
-[StatisticSet](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html))
-is submitted so that it can be predictably aggregated via the CloudWatch API or UI. Codahale Metrics instances are NOT
-reset on
-each CloudWatch report so they retain their original, cumulative functionality. The following`type` is submitted with
-each metric as a CloudWatch Dimension.
+CloudWatch speaks in terms of 
+[MetricDatum](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/MetricDatum.html) and
+[StatisticSet](http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/cloudwatch/model/StatisticSet.html)). Code hale's metric classes are thus translated into these constructs in the most direct way possible. The metric classes are NOT reset, so that they retain their original, cumulative functionality.
 
-| Metric    | Type           | sent statistic meaning per interval                                                     |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
-| Gauge     | gauge          | current value (if numeric)                                                              |
-| Counter   | counterSum     | change in sum since last report                                                         |
-| Meter     | meterSum       | change in sum since last report                                                         |
-| Histogram | histogramCount | change in samples since last report                                                     |
-|           | histogramSet   | CloudWatch StatisticSet based on Snapshot                                               |
-| Timer     | timerCount     | change in samples since last report                                                     |
-|           | timerSet       | CloudWatch StatisticSet based on Snapshot; sum / 1,000,000 (nanos -> millis)            |
+The CloudWatchReporter adds the `metricType` dimension as follows, 
 
-`histogramSum` and `timerSum` do not submit differences per polling interval due to the possible sliding history
-mechanics in each of them. Instead all available values are summed and counted to be sent as the simplified CloudWatch
-StatisticSet. In this way, multiple submissions at the same time aggregate predictably with the standard CloudWatch UI
-functions. As a consequence, any new process using these abstractions when viewed in CloudWatch as *sums* or *samples*
-over time will steadily grow until the Codahale Metrics Reservoir decides to eject values: see
-[Codahale Metrics: Histograms](http://metrics.codahale.com/manual/core/#histograms). Viewing/aggregating these metrics as
-*averages* is usually the most explainable way to use that data.
+| Class     | Dimension Value | sent statistic meaning per interval                                                     |
+| --------- | --------------- | --------------------------------------------------------------------------------------- |
+| Gauge     | gauge           | If numeric, .getValue(). Non-numeric ignored.                                           |
+| Counter   | counterCount    | Diff in .getCount() since last report.                                                  |
+| Meter     | meterCount      | Diff in .getCount() since last report.                                                  |
+| Histogram | histoSamples    | Diff in .getCount() (which for Histogram is number of samples) since last report.       |
+|           | histoStats†     | StatisticSet based on .getSnapshot().                                                   |
+| Timer     | timerSamples    | Diff in .getCount() (which for Timer is number of samples) since last report.           |
+|           | timerStats†     | StatisticSet based on .getSnapshot(). sum / 1,000,000 (nanos -> millis)                 |
 
+The dimension name and values for each metric type are configurable in the CloudWatchReporterBuilder.
 
+† - Per `histoStats` and `timerStats`, you have to consider what the Snapshot actually is to understand how they are
+translated to StatisticSets. In a nutshell there is a sliding window of history. At each reporter interval all
+available values are read to compute the parts of a CloudWatch StatisticSet: the min, max, sum, average, and samples
+(number of data points).
+
+If you plan on seriously using any of this at scale, you should go read the code to understand
+exactly what the code hale metrics classes capture, and how that information gets translated into CloudWatch.
 
 
 
@@ -215,6 +211,16 @@ In case you forgot, AWS costs money. Metrics and monitoring can easily become th
 of your stack. So be wary of metrics explosions.
 
 
+
+
+Development
+-----------
+
+    git clone git@github.com:blacklocus/metrics-cloudwatch
+    cd metrics-cloudwatch
+    ./gradlew idea
+
+Open the metrics-cloudwatch.ipr. Do NOT enable gradle integration in IntelliJ.
 
 
 
