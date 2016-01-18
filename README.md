@@ -131,11 +131,11 @@ exactly what the code hale metrics classes capture, and how that information get
 
 #### Special characters in metric names ####
 
-**Dimension support name=value **: Any un-spaced tokens of the metric
+__Dimension support name=value__: Any un-spaced tokens of the metric
 name that contain a '=' will be interpreted as CloudWatch dimensions. e.g. "CatCounter dev breed=calico" will result
 in a CloudWatch metric with Metric Name "CatCounter dev" and one Dimension  { "breed": "calico" }.
 
-**Duplicate submission support token* **: Neither the CloudWatch service nor web console will aggregate metrics *across dimensions on custom metrics*
+__Duplicate submission support token*__: Neither the CloudWatch service nor web console will aggregate metrics *across dimensions on custom metrics*
 ([see CloudWatch documentation](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_concepts.html#Dimension)).
 For convenience, we can just submit these metrics in duplicate, once with the dimension and once without (the aggregate over all values of this dimension).
 
@@ -167,42 +167,25 @@ To get the aggregate of this metric over all machines, we would add all of the m
 Unfortunately, we use the CloudWatch web console, which will not aggregate across dimensions. So instead we submit the metric twice from each machine: once machine-specific with the machine dimension, and once without the machine dimension.
 The metric without the machine dimension represents performance across all machines.
 
-The CloudWatchReporter provided by this project can do that by adding the `*` 
+The CloudWatchReporter provided by this project can do that by adding the `*` to any part of the name. In this case we want to *permute* the machine dimension so by appending `*` to the end of the machine dimension, the name string becomes 
 
-###### Multiple-scope submissions support ######
+    ServiceX Requests machine={insert machine id here}*
 
-So continuing the previous scenario, in order to get a total count for all machines, you would have to add
-all such counters together regardless of their *machine* dimension. We just use the CloudWatch console which
-cannot do this for you. So instead of building a whole new UI to do that for us, we have both machines
-also submit the metric without their unique **machine** dimension value, which can be achieved by certain
-symbols in the metric's name.
+and this counter will now be sent twice for any machine. In our example we had two machines 1.2.3.4 and 7.5.3.1.
+So all of the metric submissions look like this across all machines.
 
-```java
-// machine A
-metricRegistry.counter("ServiceX Requests machine=1.2.3.4*");
-// machine B
-metricRegistry.counter("ServiceX Requests machine=7.5.3.1*");
-```
-
-The * at the end of a dimension (or plain token) segment signifies that this component is *permutable*. The metric must be
-submitted at least once with this component, and once without. The CloudWatchReporter on each machine will resolve this
-to 2 metrics on each machine, where the *global* metric overlaps and individual machines' remain unique.
-
-  - `ServiceX Requests machine=1.2.3.4*` resolves to submissions...
-    * ServiceX Requests
-    * ServiceX Requests machine=1.2.3.4
-  - `ServiceX Requests machine=7.5.3.1*` resolves to submissions...
+  - machine 1.2.3.4 submits to CloudWatch two metrics named
+    * `ServiceX Requests` and 
+    * `ServiceX Requests machine=1.2.3.4`
+  - machine 7.5.3.1 submits to CloudWatch two metrics named
     * ServiceX Requests
     * ServiceX Requests machine=7.5.3.1
 
-In this way now in the CloudWatch UI we will find 3 unique metrics, one for each individual machine with dimension={ip
-address}, and one *ServiceX Requests* which scopes all machines together.
-
-Both simple name tokens and dimensions can be permuted (appended with *). Note that this can produce a multiplicative
-number of submissions. e.g. Some machine constructs this individualized metric name
+Any *name token* can be permuted by appending with a `*`, not just dimensions. **But be warned**, permutations
+can grow exponentially such as in this example.
 
 ```java
-metricRegistry.counter("ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development");
+registry.counter("ServiceX Requests group-tag* machine=1.2.3.4* strategy=dolphin* environment=development");
 ```
 
 This resolves to all of the following CloudWatch metrics.
@@ -218,7 +201,6 @@ This resolves to all of the following CloudWatch metrics.
 
 In case you forgot, AWS costs money. Metrics and monitoring can easily become the most expensive part
 of your stack. So be wary of metrics explosions.
-
 
 
 
