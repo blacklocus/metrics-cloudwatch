@@ -224,5 +224,5 @@ Open the metrics-cloudwatch.ipr. Do NOT enable gradle integration in IntelliJ.
 License
 -------
 
-Copyright 2015 BlackLocus under [the Apache 2.0 license](LICENSE)
+Copyright 2013-2016 BlackLocus under [the Apache 2.0 license](LICENSE)
 

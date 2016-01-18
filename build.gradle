@@ -78,6 +78,10 @@ dependencies {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Artifacts
 
+assemble {
+    dependsOn licenseFormatMain, licenseFormatTest
+}
+
 jar {
     manifest = defaultManifest()
 }
@@ -113,7 +117,6 @@ signing {
 }
 
 uploadArchives {
-    dependsOn licenseFormatMain, licenseFormatTest
     repositories.mavenDeployer {
         beforeDeployment { MavenDeployment deployment -> signPom(deployment) }
 
