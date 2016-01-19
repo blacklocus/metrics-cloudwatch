@@ -468,7 +468,7 @@ public class CloudWatchReporter extends ScheduledReporter {
 
             // Each CloudWatch API request may contain at maximum 20 datums. Break into partitions of 20.
             Iterable<List<MetricDatum>> dataPartitions = Iterables.partition(filtered, 20);
-            List<Future<?>> cloudWatchFutures = Lists.newArrayListWithExpectedSize(data.size());
+            List<Future<?>> cloudWatchFutures = Lists.newArrayListWithExpectedSize(filtered.size());
 
             // Submit asynchronously with threads.
             for (List<MetricDatum> dataSubset : dataPartitions) {
@@ -490,7 +490,7 @@ public class CloudWatchReporter extends ScheduledReporter {
                 }
             }
 
-            LOG.debug("Sent {} metric data to CloudWatch. namespace: {}", data.size(), metricNamespace);
+            LOG.debug("Sent {} metric data to CloudWatch. namespace: {}", filtered.size(), metricNamespace);
 
         } catch (RuntimeException e) {
             LOG.error("Error marshalling CloudWatch metrics.", e);
