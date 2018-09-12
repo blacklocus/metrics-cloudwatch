@@ -9,8 +9,8 @@ ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 // Plugins
 
 apply plugin: 'java'
-sourceCompatibility = 1.6
-targetCompatibility = 1.6
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 apply plugin: 'maven'
 apply plugin: 'signing'
@@ -64,15 +64,15 @@ repositories {
 }
 
 dependencies {
-    compile 'com.amazonaws:aws-java-sdk-cloudwatch:1.10.47'
-    compile 'io.dropwizard.metrics:metrics-core:3.1.2'
+    compile 'com.amazonaws:aws-java-sdk-cloudwatch:1.11.407'
+    compile 'io.dropwizard.metrics:metrics-core:4.0.3'
 
-    compile 'org.apache.commons:commons-lang3:3.4'
-    compile 'com.google.guava:guava:19.0'
-    compile 'org.slf4j:slf4j-api:1.7.13'
+    compile 'org.apache.commons:commons-lang3:3.8'
+    compile 'com.google.guava:guava:23.0'
+    compile 'org.slf4j:slf4j-api:1.7.25'
 
     testCompile 'junit:junit:4.12'
-    testCompile 'org.slf4j:slf4j-simple:1.7.13'
+    testCompile 'org.slf4j:slf4j-simple:1.7.25'
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,7 +169,7 @@ uploadArchives {
 
 idea {
     project {
-        languageLevel = '1.6'
+        languageLevel = '1.8'
     }
 }
 
